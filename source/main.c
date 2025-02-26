@@ -22,9 +22,7 @@
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 #include <unistd.h>
-#include <curl/curl.h>
 #include <wiisocket.h>
-#include <unistd.h>
 #include <ogc/wiilaunch.h>
 
 #include "util.h"

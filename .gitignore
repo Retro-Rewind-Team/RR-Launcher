@@ -2,3 +2,4 @@
 *.dol
 
 /build
+/.vscode/settings.json
