@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 
         if (part_groups[i].count > 4)
         {
-            FATAL("too many partitions in group %d (max: 4, got: %d)", i, part_groups[i].count);
+            RRC_FATAL("too many partitions in group %d (max: 4, got: %d)", i, part_groups[i].count);
         }
 
         res = rrc_di_unencrypted_read(&partitions, sizeof(partitions), part_groups[i].offset);
@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 
     if (data_part == NULL)
     {
-        FATAL("no data partition found on disk");
+        RRC_FATAL("no data partition found on disk");
     }
     printf("data partition found at offset %x\n", data_part->offset << 2);
 
@@ -136,9 +136,9 @@ int main(int argc, char **argv)
     res = rrc_di_read(&data_header, sizeof(data_header), 0x420 >> 2);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_read data partition header");
 
-    printf("DOL offset: %d\n", data_header->dol_offset);
-    printf("FST offset: %d\n", data_header->fst_offset);
-    printf("FST size: %d\n", data_header->fst_size);
+    printf("DOL offset: %d\n", data_header->dol_offset << 2);
+    printf("FST offset: %d\n", data_header->fst_offset << 2);
+    printf("FST size: %d\n", data_header->fst_size << 2);
 
     while (1)
     {

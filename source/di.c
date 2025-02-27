@@ -88,12 +88,12 @@ int rrc_di_unencrypted_read(void *buf, u32 size, u32 offset)
 {
     if (size < 32)
     {
-        FATAL("UnencryptedRead() requires a size >= 32, got %d", size);
+        RRC_FATAL("UnencryptedRead() requires a size >= 32, got %d", size);
     }
 
     if (((u32)buf & 31) != 0)
     {
-        FATAL("UnencryptedRead() buffer must be aligned to 32 bytes, but is at address %p", buf);
+        RRC_FATAL("UnencryptedRead() buffer must be aligned to 32 bytes, but is at address %p", buf);
     }
 
     int status = DI_UnencryptedRead(buf, size, offset);
