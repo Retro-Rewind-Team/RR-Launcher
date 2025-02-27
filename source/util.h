@@ -26,30 +26,31 @@
 
 #define _RRC_STRING(s) #s
 
-#define FATAL(...) printf(__VA_ARGS__); \
-    usleep(1000000); \
+#define FATAL(...)       \
+    printf(__VA_ARGS__); \
+    usleep(1000000);     \
     exit(1);
 
-#define RRC_ASSERT(condition, what)                                     \
-    do                                                                  \
-    {                                                                   \
-        int st = condition;                                             \
-        char *st_str = _RRC_STRING(condition);                          \
-        if (!st)                                                        \
-        {                                                               \
-            FATAL("%s: assert failed: %s (got %i)", what, st_str, st);  \
-        }                                                               \
+#define RRC_ASSERT(condition, what)                                    \
+    do                                                                 \
+    {                                                                  \
+        int st = condition;                                            \
+        char *st_str = _RRC_STRING(condition);                         \
+        if (!st)                                                       \
+        {                                                              \
+            FATAL("%s: assert failed: %s (got %i)", what, st_str, st); \
+        }                                                              \
     } while (0);
-                                        
-#define RRC_ASSERTEQ(lhs, rhs, what)                                                      \
-    do                                                                                    \
-    {                                                                                     \
-        int st = lhs == rhs;                                                              \
-        char *st_str = _RRC_STRING(lhs) " == " _RRC_STRING(rhs);                          \
-        if (!st)                                                                          \
-        {                                                                                 \
-            FATAL("%s: assert failed: %s (lhs = %i, rhs = %i)", what, st_str, lhs, rhs);  \
-        }                                                                                 \
+
+#define RRC_ASSERTEQ(lhs, rhs, what)                                                     \
+    do                                                                                   \
+    {                                                                                    \
+        int st = lhs == rhs;                                                             \
+        char *st_str = _RRC_STRING(lhs) " == " _RRC_STRING(rhs);                         \
+        if (!st)                                                                         \
+        {                                                                                \
+            FATAL("%s: assert failed: %s (lhs = %i, rhs = %i)", what, st_str, lhs, rhs); \
+        }                                                                                \
     } while (0);
 
 #endif

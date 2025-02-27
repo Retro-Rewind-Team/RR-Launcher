@@ -1,5 +1,5 @@
 /*
-	di.h - /dev/di implementation header
+    di.h - /dev/di implementation header
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -86,7 +86,7 @@ int rrc_di_get_disk_id(struct rrc_di_disk_id *diskid);
 
 int rrc_di_unencrypted_read(void *buf, u32 size, u32 offset);
 
-int rrc_di_read(void* buf, u32 size, u32 offset);
+int rrc_di_read(void *buf, u32 size, u32 offset);
 
 int rrc_di_open_partition(u32 offset);
 
