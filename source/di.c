@@ -1,5 +1,5 @@
 /*
-	di.c - /dev/di wrapper implementation
+    di.c - /dev/di wrapper implementation
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -24,7 +24,7 @@
     Speficially, `init' opens the device file with the wrong mode (2 instead of 0), and
     attempting to get cover register status uses the wrong command number. We provide
     our own implementations where necessary, but all manipulation of /dev/di should
-    regardless happen through this file due to the fact that it all shares the same 
+    regardless happen through this file due to the fact that it all shares the same
     global di_fd variable.
 */
 #include <di/di.h>
@@ -41,9 +41,9 @@ int rrc_di_getfd()
 
 int rrc_di_init()
 {
-	int fd = (int)IOS_Open("/dev/di", 0);
+    int fd = (int)IOS_Open("/dev/di", 0);
 
-	di_fd = fd;
+    di_fd = fd;
     return fd;
 }
 
@@ -52,32 +52,69 @@ int rrc_di_reset()
     return DI_Reset();
 }
 
-int rrc_di_getlowcoverregister(unsigned int* status)
+int rrc_di_get_low_cover_register(unsigned int *status)
 {
-	uint32_t outbuf[8] __attribute__((aligned(32))) = {0};
-	uint32_t dic[8] __attribute__((aligned(32)));
-	memset(dic, 0x00, 0x20);
-	dic[0] = 0x7A << 24;
+    uint32_t outbuf[8] __attribute__((aligned(32))) = {0};
+    uint32_t dic[8] __attribute__((aligned(32)));
+    memset(dic, 0x00, 0x20);
+    dic[0] = 0x7A << 24;
 
-	// get drive status (disc inserted?)
-	int res = IOS_Ioctl(rrc_di_getfd(), 0x7A, dic, 0x20, outbuf, 0x20);
-	*status = outbuf[0];
+    // get drive status (disc inserted?)
+    int res = IOS_Ioctl(rrc_di_getfd(), 0x7A, dic, 0x20, outbuf, 0x20);
+    *status = outbuf[0];
 
     return res;
 }
 
-int rrc_di_getdiskid(struct rrc_di_diskid* diskid)
+int rrc_di_get_disk_id(struct rrc_di_disk_id *diskid)
 {
     uint64_t idr;
-	int resdid = DI_ReadDiscID(&idr);
+    int resdid = DI_ReadDiscID(&idr);
 
-    if(resdid == RRC_DI_LIBDI_OK)
+    if (resdid == RRC_DI_LIBDI_OK)
     {
-        memcpy(diskid, &idr, sizeof(struct rrc_di_diskid));
-    } else {
+        memcpy(diskid, &idr, sizeof(struct rrc_di_disk_id));
+    }
+    else
+    {
         // zero it on error
-        memset(diskid, 0, sizeof(struct rrc_di_diskid));
+        memset(diskid, 0, sizeof(struct rrc_di_disk_id));
     }
 
     return resdid;
+}
+
+int rrc_di_unencrypted_read(void *buf, u32 size, u32 offset)
+{
+    if (size < 32)
+    {
+        RRC_FATAL("UnencryptedRead() requires a size >= 32, got %d", size);
+    }
+
+    if (((u32)buf & 31) != 0)
+    {
+        RRC_FATAL("UnencryptedRead() buffer must be aligned to 32 bytes, but is at address %p", buf);
+    }
+
+    int status = DI_UnencryptedRead(buf, size, offset);
+    if (status != RRC_DI_LIBDI_OK)
+    {
+        memset(buf, 0, size);
+    }
+    return status;
+}
+
+int rrc_di_read(void *buf, u32 size, u32 offset)
+{
+    int status = DI_Read(buf, size, offset);
+    if (status != RRC_DI_LIBDI_OK)
+    {
+        memset(buf, 0, size);
+    }
+    return status;
+}
+
+int rrc_di_open_partition(u32 offset)
+{
+    return DI_OpenPartition(offset);
 }

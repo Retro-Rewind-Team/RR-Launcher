@@ -20,32 +20,41 @@
 #ifndef RRC_UTIL_H
 #define RRC_UTIL_H
 
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+
 #define _RRC_STRING(s) #s
 
-#define RRC_ASSERT(condition, what)                                     \
-    do                                                                  \
-    {                                                                   \
-        int st = condition;                                             \
-        char *st_str = _RRC_STRING(condition);                          \
-        if (!st)                                                        \
-        {                                                               \
-            printf("%s: assert failed: %s (got %i)", what, st_str, st); \
-            usleep(1000000);                                            \
-            exit(1);                                                    \
-        }                                                               \
+#ifndef RRC_EXIT_DELAY
+#define RRC_EXIT_DELAY 1000000
+#endif
+
+#define RRC_FATAL(...)      \
+    printf(__VA_ARGS__);    \
+    usleep(RRC_EXIT_DELAY); \
+    exit(1);
+
+#define RRC_ASSERT(condition, what)                                        \
+    do                                                                     \
+    {                                                                      \
+        int st = condition;                                                \
+        char *st_str = _RRC_STRING(condition);                             \
+        if (!st)                                                           \
+        {                                                                  \
+            RRC_FATAL("%s: assert failed: %s (got %i)", what, st_str, st); \
+        }                                                                  \
     } while (0);
 
-#define RRC_ASSERTEQ(lhs, rhs, what)                                                      \
-    do                                                                                    \
-    {                                                                                     \
-        int st = lhs == rhs;                                                              \
-        char *st_str = _RRC_STRING(lhs) " == " _RRC_STRING(rhs);                          \
-        if (!st)                                                                          \
-        {                                                                                 \
-            printf("%s: assert failed: %s (lhs = %i, rhs = %i)", what, st_str, lhs, rhs); \
-            usleep(1000000);                                                              \
-            exit(1);                                                                      \
-        }                                                                                 \
+#define RRC_ASSERTEQ(lhs, rhs, what)                                                         \
+    do                                                                                       \
+    {                                                                                        \
+        int st = lhs == rhs;                                                                 \
+        char *st_str = _RRC_STRING(lhs) " == " _RRC_STRING(rhs);                             \
+        if (!st)                                                                             \
+        {                                                                                    \
+            RRC_FATAL("%s: assert failed: %s (lhs = %i, rhs = %i)", what, st_str, lhs, rhs); \
+        }                                                                                    \
     } while (0);
 
 #endif
