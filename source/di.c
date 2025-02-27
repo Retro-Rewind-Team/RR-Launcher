@@ -52,7 +52,7 @@ int rrc_di_reset()
     return DI_Reset();
 }
 
-int rrc_di_getlowcoverregister(unsigned int* status)
+int rrc_di_get_low_cover_register(unsigned int* status)
 {
 	uint32_t outbuf[8] __attribute__((aligned(32))) = {0};
 	uint32_t dic[8] __attribute__((aligned(32)));
@@ -66,18 +66,47 @@ int rrc_di_getlowcoverregister(unsigned int* status)
     return res;
 }
 
-int rrc_di_getdiskid(struct rrc_di_diskid* diskid)
+int rrc_di_get_disk_id(struct rrc_di_disk_id* diskid)
 {
     uint64_t idr;
 	int resdid = DI_ReadDiscID(&idr);
 
     if(resdid == RRC_DI_LIBDI_OK)
     {
-        memcpy(diskid, &idr, sizeof(struct rrc_di_diskid));
+        memcpy(diskid, &idr, sizeof(struct rrc_di_disk_id));
     } else {
         // zero it on error
-        memset(diskid, 0, sizeof(struct rrc_di_diskid));
+        memset(diskid, 0, sizeof(struct rrc_di_disk_id));
     }
 
     return resdid;
+}
+
+
+int rrc_di_unencrypted_read(void *buf, u32 size, u32 offset) {
+    if (size < 32) {
+        FATAL("UnencryptedRead() requires a size >= 32, got %d", size);
+    }
+
+    if (((u32)buf & 31) != 0) {
+        FATAL("UnencryptedRead() buffer must be aligned to 32 bytes, but is at address %p", buf);
+    }
+
+    int status = DI_UnencryptedRead(buf, size, offset);
+    if (status != RRC_DI_LIBDI_OK) {
+        memset(buf, 0, size);
+    }
+    return status;
+}
+
+int rrc_di_read(void* buf, u32 size, u32 offset) {
+    int status = DI_Read(buf, size, offset);
+    if (status != RRC_DI_LIBDI_OK) {
+        memset(buf, 0, size);
+    }
+    return status;
+}
+
+int rrc_di_open_partition(u32 offset) {
+    return DI_OpenPartition(offset);
 }

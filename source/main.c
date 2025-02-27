@@ -70,13 +70,13 @@ int main(int argc, char **argv)
 
 	int res;
 	unsigned int status;
-	res = rrc_di_getlowcoverregister(&status);
+	res = rrc_di_get_low_cover_register(&status);
 	RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
 
 	RRC_ASSERTEQ(rrc_di_reset(), RRC_DI_LIBDI_OK, "rrc_di_reset");
 
-	struct rrc_di_diskid did;
-	res = rrc_di_getdiskid(&did);
+	struct rrc_di_disk_id did;
+	res = rrc_di_get_disk_id(&did);
 	RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_getdiskid")
 
 	char gameId[16];
@@ -86,9 +86,55 @@ int main(int argc, char **argv)
 
 	printf("Game ID/Rev: %s\n", gameId);
 
-	while (1)
-	{
+	// TODO: Assert that the game ID is actually MKWii.
+	// We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
+	// This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
+	// Data partitions have the id 0.
 
+	struct rrc_di_part_group part_groups[4] __attribute__((aligned(32)));
+	res = rrc_di_unencrypted_read(&part_groups, sizeof(part_groups), RRC_DI_PART_GROUPS_OFFSET >> 2);
+	RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition group");
+
+	struct rrc_di_part_info partitions[4] __attribute__((aligned(32)));
+	struct rrc_di_part_info *data_part = NULL;
+
+	for (u32 i = 0; i < 4 && data_part == NULL; i++) {
+		if (part_groups[i].count == 0 && part_groups[i].offset == 0) {
+			// No partitions in this group.
+			continue;
+		}
+
+		if (part_groups[i].count > 4) {
+			FATAL("too many partitions in group %d (max: 4, got: %d)", i, part_groups[i].count);
+		}
+
+		res = rrc_di_unencrypted_read(&partitions, sizeof(partitions), part_groups[i].offset);
+		RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition");
+		for (u32 j = 0; j < part_groups[i].count; j++) {
+			if (partitions[j].type == RRC_DI_PART_TYPE_DATA) {
+				data_part = &partitions[j];
+				break;
+			}
+		}
+	}
+
+	if (data_part == NULL) {
+		FATAL("no data partition found on disk");
+	}
+	printf("data partition found at offset %x\n", data_part->offset << 2);
+
+	res = rrc_di_open_partition(data_part->offset);
+	RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_open_partition");
+	
+	struct rrc_di_data_part_header data_header[3] __attribute__((aligned(32)));
+	res = rrc_di_read(&data_header, sizeof(data_header), 0x420 >> 2);
+	RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_read data partition header");
+
+	printf("DOL offset: %d\n", data_header->dol_offset);
+	printf("FST offset: %d\n", data_header->fst_offset);
+	printf("FST size: %d\n", data_header->fst_size);
+
+	while (1) {
 		// Call WPAD_ScanPads each loop, this reads the latest controller states
 		WPAD_ScanPads();
 
