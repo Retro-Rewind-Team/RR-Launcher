@@ -23,8 +23,6 @@
 
 #define RRC_DI_PART_TYPE_DATA 0
 
-#define RRC_DI_LIBDI_OK 0
-
 #define RRC_DI_PART_GROUPS_OFFSET 0x40000
 #define RRC_DI_DATA_PART_HEADER 0x420
 
@@ -33,6 +31,13 @@ enum rrc_di_ret
 {
     RRC_DI_RET_UNKNOWN = 0,
     RRC_DI_RET_OK = 1,
+};
+
+/* used for libdi status codes */
+enum rrc_di_libdi_ret
+{
+    RRC_DI_LIBDI_OK = 0,
+    RRC_DI_LIBDI_EIO = 5
 };
 
 /*
