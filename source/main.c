@@ -27,16 +27,30 @@
 #include <string.h>
 
 #include "util.h"
+#include "shutdown.h"
 #include "di.h"
+#include "time.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
+
+void *wiisocket_init_thread_callback(void *res)
+{
+    // Note: the void* given to us is an int* that lives in the main function,
+    // because we want to assert everything from the main thread rather than asserting in here
+    // so that we don't potentially exit(1) from another thread while the main thread is doing some important reading/patching.
+    *(int *)res = wiisocket_init();
+    rrc_dbg_printf("network initialised with status %d\n", *(int *)res);
+    return NULL;
+}
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
 int main(int argc, char **argv)
 {
+    s64 systime_start = gettime();
+
     // response codes for various library functions
     int res;
 
@@ -67,9 +81,17 @@ int main(int argc, char **argv)
     // seek to start
     printf("\x1b[0;0H");
 
-    rrc_dbg_printf("init network\n");
-    res = wiisocket_init();
-    RRC_ASSERTEQ(res, 0, "wiisocket_init");
+    rrc_dbg_printf("spawn shutdown background thread\n");
+    lwp_t shutdown_thread = rrc_shutdown_spawn();
+
+    // Initializing the network can take fairly long (seconds).
+    // It's not really needed right away anyway so we can do it on another thread in parallel to some of the disk reading
+    // and join on it later when we actually need it.
+    rrc_dbg_printf("spawn network init thread\n");
+    int wiisocket_res;
+    lwp_t wiisocket_thread;
+    res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
+    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
     rrc_dbg_printf("init controllers\n");
     res = WPAD_Init();
@@ -83,6 +105,8 @@ int main(int argc, char **argv)
     bool disc_printed = false;
 
 check_cover_register:
+    CHECK_EXIT();
+
     res = rrc_di_get_low_cover_register(&status);
     RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
 
@@ -99,7 +123,7 @@ check_cover_register:
         goto check_cover_register;
     }
 
-    /* we need to check we actually instered mario kart wii */
+    /* we need to check we actually inserted mario kart wii */
     struct rrc_di_disk_id did;
     res = rrc_di_get_disk_id(&did);
     /* likely drive wasnt spun up */
@@ -123,8 +147,8 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     printf("Game ID/Rev: %s\n", gameId);
+    CHECK_EXIT();
 
-    // TODO: Assert that the game ID is actually MKWii.
     // We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
     // Data partitions have the id 0.
@@ -166,6 +190,7 @@ check_cover_register:
         RRC_FATAL("no data partition found on disk");
     }
     printf("data partition found at offset %x\n", data_part->offset << 2);
+    CHECK_EXIT();
 
     res = rrc_di_open_partition(data_part->offset);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_open_partition");
@@ -178,23 +203,15 @@ check_cover_register:
     printf("FST offset: %d\n", data_header->fst_offset << 2);
     printf("FST size: %d\n", data_header->fst_size << 2);
 
-    while (1)
-    {
-        // Call WPAD_ScanPads each loop, this reads the latest controller states
-        WPAD_ScanPads();
+    res = LWP_JoinThread(wiisocket_thread, NULL);
+    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
+    RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
-        // WPAD_ButtonsDown tells us which buttons were pressed in this loop
-        // this is a "one shot" state which will not fire again until the button has been released
-        u32 pressed = WPAD_ButtonsDown(0);
+    s64 systime_end = gettime();
+    rrc_dbg_printf("Time taken: %.3f seconds\n", ((f64)diff_msec(systime_start, systime_end)) / 1000.0);
 
-        // We return to the launcher application via exit
-        if (pressed & WPAD_BUTTON_A)
-            exit(0);
+    rrc_shutdown_join(shutdown_thread);
 
-        // Wait for the next frame
-        VIDEO_WaitVSync();
-    }
-
-    // curl_easy_cleanup(curl);
     return 0;
+#undef CHECK_EXIT
 }
