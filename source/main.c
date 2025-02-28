@@ -29,6 +29,7 @@
 #include "util.h"
 #include "shutdown.h"
 #include "di.h"
+#include "time.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -54,6 +55,8 @@ int main(int argc, char **argv)
         rrc_dbg_printf("Home button pressed, exiting..."); \
         return 0;                                          \
     }
+
+    s64 systime_start = gettime();
 
     // response codes for various library functions
     int res;
@@ -210,6 +213,9 @@ check_cover_register:
     res = LWP_JoinThread(wiisocket_thread, NULL);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+
+    s64 systime_end = gettime();
+    rrc_dbg_printf("Time taken: %.3f seconds\n", ((f64)diff_msec(systime_start, systime_end)) / 1000.0);
 
     rrc_shutdown_join(shutdown_thread);
 
