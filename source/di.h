@@ -35,12 +35,27 @@ enum rrc_di_ret
     RRC_DI_RET_OK = 1,
 };
 
+/*
+ * Disk ID information.
+ * See: https://wiibrew.org/wiki/Wii_disc#DiscId
+ */
 struct rrc_di_disk_id
 {
     char game_id[4];
     u16 group_id;
     u8 disc_num;
     u8 disc_ver;
+};
+
+/*
+ * Status set by `rrc_di_get_low_cover_register'.
+ * See: https://wiibrew.org/wiki//dev/di#0x7A_DVDLowGetCoverRegister
+ */
+enum rrc_di_disk_status
+{
+    RRC_DI_DICVR_CVR = (1 << 0),
+    RRC_DI_DICVR_CVRINTMASK = (1 << 1),
+    RRC_DI_DICVR_CVRINT = (1 << 2),
 };
 
 /**

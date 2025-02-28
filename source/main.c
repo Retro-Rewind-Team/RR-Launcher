@@ -24,20 +24,25 @@
 #include <unistd.h>
 #include <wiisocket.h>
 #include <ogc/wiilaunch.h>
+#include <string.h>
 
 #include "util.h"
 #include "di.h"
+
+/* 100ms */
+#define DISKCHECK_DELAY 100000
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
 int main(int argc, char **argv)
 {
-    wiisocket_init();
+    // response codes for various library functions
+    int res;
+
     // Initialise the video system
     VIDEO_Init();
-    // This function initialises the attached controllers
-    WPAD_Init();
+
     // Obtain the preferred video mode from the system
     // This will correspond to the settings in the Wii menu
     rmode = VIDEO_GetPreferredMode(NULL);
@@ -59,25 +64,53 @@ int main(int argc, char **argv)
     if (rmode->viTVMode & VI_NON_INTERLACE)
         VIDEO_WaitVSync();
 
-    // The console understands VT terminal escape codes
-    // This positions the cursor on row 2, column 0
-    // we can use variables for this with format codes too
-    // e.g. printf ("\x1b[%d;%dH", row, column );
-    printf("\x1b[2;0H");
+    // seek to start
+    printf("\x1b[0;0H");
 
+    rrc_dbg_printf("init network\n");
+    res = wiisocket_init();
+    RRC_ASSERTEQ(res, 0, "wiisocket_init");
+
+    rrc_dbg_printf("init controllers\n");
+    res = WPAD_Init();
+    RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
+
+    rrc_dbg_printf("init disk drive\n");
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
-    int res;
     unsigned int status;
+    bool disc_printed = false;
+
+check_cover_register:
     res = rrc_di_get_low_cover_register(&status);
     RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
 
+    // if status = 0 that means that a disk is inserted
+    if ((status & RRC_DI_DICVR_CVR) != 0)
+    {
+    missing_mkwii_alert:
+        if (!disc_printed)
+        {
+            printf("Please insert Mario Kart Wii into the console.\n");
+            disc_printed = true;
+        }
+        usleep(DISKCHECK_DELAY);
+        goto check_cover_register;
+    }
+
+    /* spin up the drive */
     RRC_ASSERTEQ(rrc_di_reset(), RRC_DI_LIBDI_OK, "rrc_di_reset");
 
+    /* we need to check we actually instered mario kart wii */
     struct rrc_di_disk_id did;
     res = rrc_di_get_disk_id(&did);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_getdiskid")
+
+    /* this excludes region identifier */
+#define DISKID_MKW_ID "RMC"
+    if (memcmp(did.game_id, DISKID_MKW_ID, strlen(DISKID_MKW_ID)))
+        goto missing_mkwii_alert;
 
     char gameId[16];
     snprintf(

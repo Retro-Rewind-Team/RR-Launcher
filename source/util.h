@@ -24,6 +24,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+/*
+    When this directive is defined and set to a value greater than 0,
+    debug logging and some additional assertions are enabled.
+*/
+#define DEBUG 1
+
 #define _RRC_STRING(s) #s
 
 #ifndef RRC_EXIT_DELAY
@@ -56,5 +62,21 @@
             RRC_FATAL("%s: assert failed: %s (lhs = %i, rhs = %i)", what, st_str, lhs, rhs); \
         }                                                                                    \
     } while (0);
+
+#if defined(DEBUG) && DEBUG >= 0
+/* define debug macros */
+
+#define rrc_dbg_printf(...)  \
+    do                       \
+    {                        \
+        printf(__VA_ARGS__); \
+    } while (0);
+
+#else
+/* define stubs */
+
+#define rrc_dbg_printf(...)
+
+#endif
 
 #endif
