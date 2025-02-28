@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "shutdown.h"
 #include "di.h"
 
 /* 100ms */
@@ -37,6 +38,13 @@ static GXRModeObj *rmode = NULL;
 
 int main(int argc, char **argv)
 {
+#define CHECK_EXIT()                                       \
+    if (rrc_shutting_down)                                 \
+    {                                                      \
+        rrc_dbg_printf("Home button pressed, exiting..."); \
+        return 0;                                          \
+    }
+
     // response codes for various library functions
     int res;
 
@@ -67,6 +75,9 @@ int main(int argc, char **argv)
     // seek to start
     printf("\x1b[0;0H");
 
+    rrc_dbg_printf("spawn shutdown background thread");
+    rrc_shutdown_spawn();
+
     rrc_dbg_printf("init network\n");
     res = wiisocket_init();
     RRC_ASSERTEQ(res, 0, "wiisocket_init");
@@ -83,6 +94,8 @@ int main(int argc, char **argv)
     bool disc_printed = false;
 
 check_cover_register:
+    CHECK_EXIT();
+
     res = rrc_di_get_low_cover_register(&status);
     RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
 
@@ -99,7 +112,7 @@ check_cover_register:
         goto check_cover_register;
     }
 
-    /* we need to check we actually instered mario kart wii */
+    /* we need to check we actually inserted mario kart wii */
     struct rrc_di_disk_id did;
     res = rrc_di_get_disk_id(&did);
     /* likely drive wasnt spun up */
@@ -123,8 +136,8 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     printf("Game ID/Rev: %s\n", gameId);
+    CHECK_EXIT();
 
-    // TODO: Assert that the game ID is actually MKWii.
     // We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
     // Data partitions have the id 0.
@@ -166,6 +179,7 @@ check_cover_register:
         RRC_FATAL("no data partition found on disk");
     }
     printf("data partition found at offset %x\n", data_part->offset << 2);
+    CHECK_EXIT();
 
     res = rrc_di_open_partition(data_part->offset);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_open_partition");
@@ -178,23 +192,8 @@ check_cover_register:
     printf("FST offset: %d\n", data_header->fst_offset << 2);
     printf("FST size: %d\n", data_header->fst_size << 2);
 
-    while (1)
-    {
-        // Call WPAD_ScanPads each loop, this reads the latest controller states
-        WPAD_ScanPads();
+    rrc_shutdown_join();
 
-        // WPAD_ButtonsDown tells us which buttons were pressed in this loop
-        // this is a "one shot" state which will not fire again until the button has been released
-        u32 pressed = WPAD_ButtonsDown(0);
-
-        // We return to the launcher application via exit
-        if (pressed & WPAD_BUTTON_A)
-            exit(0);
-
-        // Wait for the next frame
-        VIDEO_WaitVSync();
-    }
-
-    // curl_easy_cleanup(curl);
     return 0;
+#undef CHECK_EXIT
 }

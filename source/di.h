@@ -20,6 +20,7 @@
 #include <gctypes.h>
 
 #ifndef RRC_DI_H
+#define RRC_DI_H
 
 #define RRC_DI_PART_TYPE_DATA 0
 

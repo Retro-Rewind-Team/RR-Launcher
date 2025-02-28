@@ -36,10 +36,13 @@
 #define RRC_EXIT_DELAY 1000000
 #endif
 
-#define RRC_FATAL(...)      \
-    printf(__VA_ARGS__);    \
-    usleep(RRC_EXIT_DELAY); \
-    exit(1);
+#define RRC_FATAL(...)          \
+    do                          \
+    {                           \
+        printf(__VA_ARGS__);    \
+        usleep(RRC_EXIT_DELAY); \
+        exit(1);                \
+    } while (0);
 
 #define RRC_ASSERT(condition, what)                                        \
     do                                                                     \
