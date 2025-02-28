@@ -1,4 +1,7 @@
 /*
+    shutdown.h - Interface for the shutdown background thread, waits for Home
+    wpad presses and notifies other threads that periodically call `CHECK_EXIT()`.
+
     Copyright (C) 2025  Retro Rewind Team
 
     This program is free software: you can redistribute it and/or modify

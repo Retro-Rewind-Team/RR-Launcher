@@ -21,7 +21,17 @@
 
 #include <gctypes.h>
 
-u32 diff_msec(u64 start, u64 end);
-s64 gettime();
+typedef s64 rrc_time_tick;
+
+/**
+ * Returns the difference of two ticks in milliseconds.
+ */
+u32 diff_msec(rrc_time_tick start, rrc_time_tick end);
+
+/**
+ * Gets the time in ticks.
+ * The return value is usually only meaningful when comparing it to another tick, e.g. using one of the `diff_*` functions.
+ */
+rrc_time_tick gettime();
 
 #endif
