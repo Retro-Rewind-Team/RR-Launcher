@@ -117,7 +117,7 @@ clean:
 	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol
 #---------------------------------------------------------------------------------
 run:
-	/mnt/c/Users/jwc20/Downloads/dolphin-2412-x64/Dolphin-x64/Dolphin.exe $(OUTPUT).dol
+	wiiload $(OUTPUT).dol
 
 #---------------------------------------------------------------------------------
 else
