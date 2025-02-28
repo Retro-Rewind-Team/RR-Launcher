@@ -18,6 +18,18 @@
 #ifndef RRC_SHUTDOWN_H
 #define RRC_SHUTDOWN_H
 
+/**
+ * Status for a shutdown interrupt
+ */
+#define RRC_SHUTDOWN_INTERRUPT (3000)
+
+#define CHECK_EXIT()                                       \
+    if (rrc_shutting_down)                                 \
+    {                                                      \
+        rrc_dbg_printf("Home button pressed, exiting..."); \
+        return RRC_SHUTDOWN_INTERRUPT;                     \
+    }
+
 extern bool rrc_shutting_down;
 
 /**

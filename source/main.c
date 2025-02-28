@@ -49,13 +49,6 @@ static GXRModeObj *rmode = NULL;
 
 int main(int argc, char **argv)
 {
-#define CHECK_EXIT()                                       \
-    if (rrc_shutting_down)                                 \
-    {                                                      \
-        rrc_dbg_printf("Home button pressed, exiting..."); \
-        return 0;                                          \
-    }
-
     s64 systime_start = gettime();
 
     // response codes for various library functions

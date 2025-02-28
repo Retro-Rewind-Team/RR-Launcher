@@ -17,10 +17,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gctypes.h>
-
 #ifndef RRC_DI_H
 #define RRC_DI_H
+
+#include <gctypes.h>
 
 #define RRC_DI_PART_TYPE_DATA 0
 

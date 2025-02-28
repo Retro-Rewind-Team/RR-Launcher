@@ -31,7 +31,8 @@ static void *rrc_shutdown_handler(void *)
     {
         WPAD_ScanPads();
 
-        if (WPAD_ButtonsDown(0) & WPAD_BUTTON_HOME)
+        int pressed = WPAD_ButtonsDown(0);
+        if (pressed & (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME))
         {
             rrc_shutting_down = true;
             break;
