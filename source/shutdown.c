@@ -22,7 +22,6 @@
 #include "shutdown.h"
 
 bool rrc_shutting_down = false;
-lwp_t rrc_shutdown_thread;
 
 #define SHUTDOWN_LOOP_DELAY 10000 /* 10ms */
 
@@ -46,13 +45,15 @@ static void *rrc_shutdown_handler(void *)
     return NULL;
 }
 
-void rrc_shutdown_spawn()
+lwp_t rrc_shutdown_spawn()
 {
-    RRC_ASSERT(
-        LWP_CreateThread(&rrc_shutdown_thread, rrc_shutdown_handler, NULL, NULL, 0, 0), "LWP_CreateThread for shutdown handler");
+    lwp_t thread;
+    RRC_ASSERTEQ(
+        LWP_CreateThread(&thread, rrc_shutdown_handler, NULL, NULL, 0, RRC_LWP_PRIO_IDLE), RRC_LWP_OK, "LWP_CreateThread for shutdown handler");
+    return thread;
 }
 
-void rrc_shutdown_join()
+void rrc_shutdown_join(lwp_t thread)
 {
-    RRC_ASSERT(LWP_JoinThread(rrc_shutdown_thread, NULL), "LWP_JoinThread for shutdown handler");
+    RRC_ASSERTEQ(LWP_JoinThread(thread, NULL), 0, "LWP_JoinThread for shutdown handler");
 }

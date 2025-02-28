@@ -33,6 +33,16 @@
 /* 100ms */
 #define DISKCHECK_DELAY 100000
 
+void *wiisocket_init_thread_callback(void *res)
+{
+    // Note: the void* given to us is an int* that lives in the main function,
+    // because we want to assert everything from the main thread rather than asserting in here
+    // so that we don't potentially exit(1) from another thread while the main thread is doing some important reading/patching.
+    *(int *)res = wiisocket_init();
+    rrc_dbg_printf("network initialised with status %d\n", *(int *)res);
+    return NULL;
+}
+
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
@@ -75,12 +85,17 @@ int main(int argc, char **argv)
     // seek to start
     printf("\x1b[0;0H");
 
-    rrc_dbg_printf("spawn shutdown background thread");
-    rrc_shutdown_spawn();
+    rrc_dbg_printf("spawn shutdown background thread\n");
+    lwp_t shutdown_thread = rrc_shutdown_spawn();
 
-    rrc_dbg_printf("init network\n");
-    res = wiisocket_init();
-    RRC_ASSERTEQ(res, 0, "wiisocket_init");
+    // Initializing the network can take fairly long (seconds).
+    // It's not really needed right away anyway so we can do it on another thread in parallel to some of the disk reading
+    // and join on it later when we actually need it.
+    rrc_dbg_printf("spawn network init thread\n");
+    int wiisocket_res;
+    lwp_t wiisocket_thread;
+    res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
+    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
     rrc_dbg_printf("init controllers\n");
     res = WPAD_Init();
@@ -192,7 +207,11 @@ check_cover_register:
     printf("FST offset: %d\n", data_header->fst_offset << 2);
     printf("FST size: %d\n", data_header->fst_size << 2);
 
-    rrc_shutdown_join();
+    res = LWP_JoinThread(wiisocket_thread, NULL);
+    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
+    RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+
+    rrc_shutdown_join(shutdown_thread);
 
     return 0;
 #undef CHECK_EXIT

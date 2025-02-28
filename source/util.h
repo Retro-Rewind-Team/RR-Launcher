@@ -36,6 +36,9 @@
 #define RRC_EXIT_DELAY 1000000
 #endif
 
+#define RRC_LWP_PRIO_IDLE 0
+#define RRC_LWP_OK 0
+
 #define RRC_FATAL(...)          \
     do                          \
     {                           \

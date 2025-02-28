@@ -19,16 +19,15 @@
 #define RRC_SHUTDOWN_H
 
 extern bool rrc_shutting_down;
-extern lwp_t rrc_shutdown_thread;
 
 /**
  * Spawns the background thread for listening to Home menu button presses.
  */
-void rrc_shutdown_spawn();
+lwp_t rrc_shutdown_spawn();
 
 /**
  * Waits until the home button is pressed and the background thread exits.
  */
-void rrc_shutdown_join();
+void rrc_shutdown_join(lwp_t);
 
 #endif
