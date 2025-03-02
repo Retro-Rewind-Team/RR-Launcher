@@ -30,6 +30,7 @@
 #include "shutdown.h"
 #include "di.h"
 #include "time.h"
+#include "loader.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -47,13 +48,8 @@ void *wiisocket_init_thread_callback(void *res)
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
-int main(int argc, char **argv)
+void video_init()
 {
-    s64 systime_start = gettime();
-
-    // response codes for various library functions
-    int res;
-
     // Initialise the video system
     VIDEO_Init();
 
@@ -77,10 +73,15 @@ int main(int argc, char **argv)
     VIDEO_WaitVSync();
     if (rmode->viTVMode & VI_NON_INTERLACE)
         VIDEO_WaitVSync();
+}
 
-    // seek to start
-    printf("\x1b[0;0H");
+int main(int argc, char **argv)
+{
+    s64 systime_start = gettime();
+    // response codes for various library functions
+    int res;
 
+    // handles pressing the home button to exit
     rrc_dbg_printf("spawn shutdown background thread\n");
     lwp_t shutdown_thread = rrc_shutdown_spawn();
 
@@ -93,6 +94,12 @@ int main(int argc, char **argv)
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
+    // init video, setup console framebuffer
+    video_init();
+
+    // seek to start
+    printf("\x1b[0;0H");
+
     rrc_dbg_printf("init controllers\n");
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
@@ -101,53 +108,26 @@ int main(int argc, char **argv)
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
-    unsigned int status;
-    bool disc_printed = false;
-
-check_cover_register:
+    /*  We should load Mario Kart Wii before doing anything else */
+    res = rrc_loader_await_mkw();
     CHECK_EXIT();
 
-    res = rrc_di_get_low_cover_register(&status);
-    RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
+    /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
+        If some button such as A is pressed in that window, initialise the full channel.
+        Otherwise, just go ahead and load the game. This saves the user time because on
+        most occasions all you want to do is play and not do anything in the settings.
 
-    // if status = 0 that means that a disk is inserted
-    if ((status & RRC_DI_DICVR_CVR) != 0)
-    {
-    missing_mkwii_alert:
-        if (!disc_printed)
-        {
-            printf("Please insert Mario Kart Wii into the console.\n");
-            disc_printed = true;
-        }
-        usleep(DISKCHECK_DELAY);
-        goto check_cover_register;
-    }
-
-    /* we need to check we actually inserted mario kart wii */
-    struct rrc_di_disk_id did;
-    res = rrc_di_get_disk_id(&did);
-    /* likely drive wasnt spun up */
-    if (res != RRC_DI_LIBDI_EIO)
-    {
-        /* spin up the drive */
-        rrc_dbg_printf("failed to read disk_id: attempting drive reset\n");
-        RRC_ASSERTEQ(rrc_di_reset(), RRC_DI_LIBDI_OK, "rrc_di_reset");
-        res = rrc_di_get_disk_id(&did);
-        RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_get_disk_id (could not initialise drive)");
-    }
-
-    /* this excludes region identifier */
-#define DISKID_MKW_ID "RMC"
-    if (memcmp(did.game_id, DISKID_MKW_ID, strlen(DISKID_MKW_ID)))
-        goto missing_mkwii_alert;
-
-    char gameId[16];
-    snprintf(
-        gameId, sizeof(gameId), "%c%c%c%cD%02x", did.game_id[0],
-        did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
-
-    printf("Game ID/Rev: %s\n", gameId);
-    CHECK_EXIT();
+        For now, we're just loading the game. However, we need to do this in stages instead
+        of in one big routine (like the WFC launcher). This is because while we're reading
+        all of the necessary sections from disc, we're still initalising the network and
+        fetching version information in the background thread. This thread will return
+        version information as read from the API's text file, so when we join that thread,
+        we compare those versions against our local version.txt and then ask the user if they
+        want to update (if necessary). This replaces files on the SD card, so once all that
+        is done, we can finally read patches from the SD, apply them, and load the game.
+        So, all disc reading can be done in advance up to the point we read patch information
+        from the SD.
+    */
 
     // We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
@@ -158,41 +138,17 @@ check_cover_register:
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition group");
 
     struct rrc_di_part_info partitions[4] __attribute__((aligned(32)));
-    struct rrc_di_part_info *data_part = NULL;
+    u32 data_part_offset = UINT32_MAX;
+    res = rrc_loader_locate_data_part(&data_part_offset);
 
-    for (u32 i = 0; i < 4 && data_part == NULL; i++)
-    {
-        if (part_groups[i].count == 0 && part_groups[i].offset == 0)
-        {
-            // No partitions in this group.
-            continue;
-        }
-
-        if (part_groups[i].count > 4)
-        {
-            RRC_FATAL("too many partitions in group %d (max: 4, got: %d)", i, part_groups[i].count);
-        }
-
-        res = rrc_di_unencrypted_read(&partitions, sizeof(partitions), part_groups[i].offset);
-        RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition");
-        for (u32 j = 0; j < part_groups[i].count; j++)
-        {
-            if (partitions[j].type == RRC_DI_PART_TYPE_DATA)
-            {
-                data_part = &partitions[j];
-                break;
-            }
-        }
-    }
-
-    if (data_part == NULL)
+    if (data_part_offset == UINT32_MAX)
     {
         RRC_FATAL("no data partition found on disk");
     }
-    printf("data partition found at offset %x\n", data_part->offset << 2);
+    printf("data partition found at offset %x\n", data_part_offset << 2);
     CHECK_EXIT();
 
-    res = rrc_di_open_partition(data_part->offset);
+    res = rrc_di_open_partition(data_part_offset);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_open_partition");
 
     struct rrc_di_data_part_header data_header[3] __attribute__((aligned(32)));
