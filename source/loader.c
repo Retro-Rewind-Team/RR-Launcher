@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "patch.h"
 #include "util.h"
 #include "di.h"
 #include "loader.h"
@@ -122,7 +123,60 @@ check_cover_register:
 #undef DISKCHECK_DELAY
 }
 
-int rrc_loader_load()
+void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
 {
-    return 0;
+    // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
+
+    *(u32 *)0xCD006C00 = 0x00000000;           // Reset `AI_CONTROL` to fix audio
+    *(u32 *)0x80000034 = 0;                    // Arena High
+    *(u32 *)0x800000EC = 0x81800000;           // Dev Debugger Monitor Address
+    *(u32 *)0x800000F0 = 0x01800000;           // Simulated Memory Size
+    *(u32 *)0x800000F4 = (u32)bi2_dest;        // Pointer to bi2
+    *(u32 *)0x800000F8 = 0x0E7BE2C0;           // Console Bus Speed
+    *(u32 *)0x800000FC = 0x2B73A840;           // Console CPU Speed
+    *(u32 *)0x80003110 = mem1_hi;              // MEM1 Arena End
+    *(u32 *)0x80003124 = 0x90000800;           // Usable MEM2 Start
+    *(u32 *)0x80003128 = mem2_hi;              // Usable MEM2 End
+    *(u32 *)0x80003180 = *(u32 *)(0x80000000); // Game ID
+    *(u32 *)0x80003188 = *(u32 *)(0x80003140); // Minimum IOS Version
+
+    if (*(u32 *)((u32)bi2_dest + 0x30) == 0x7ED40000)
+    {
+        *(u8 *)0x8000319C = 0x81; // Disc is dual layer
+    }
+    else
+    {
+        *(u8 *)0x8000319C = 0x80; // Disc is single layer
+    }
+    DCStoreRange((void *)0x80000000, 0x3400);
+    ICInvalidateRange((void *)0x80000000, 0x3400);
+
+    // The last step is to copy the sections from the safe space to where they actually need to be.
+    // This requires copying the function itself to the safe address space so we don't overwrite ourselves.
+    // It also needs to call `DCFlushRange` but cannot reference it in the function, so we copy it and pass it as a function pointer.
+    // See patch.c comment for a more detailed explanation.
+
+    void (*patch_copy)(struct rrc_dol *, void (*)(void *, u32)) = (void (*)(struct rrc_dol *, void (*)(void *, u32)))RRC_PATCH_COPY_ADDRESS;
+
+    memcpy(patch_copy, patch_dol, PATCH_DOL_LEN);
+    DCFlushRange(patch_copy, PATCH_DOL_LEN);
+    ICInvalidateRange(patch_copy, PATCH_DOL_LEN);
+
+    void (*flush_range_copy)() = (void *)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN, 32);
+    memcpy(flush_range_copy, DCFlushRange, 64);
+    DCFlushRange(flush_range_copy, 64);
+    ICInvalidateRange(flush_range_copy, 64);
+
+    __IOS_ShutdownSubsystems();
+    for (u32 i = 0; i < 32; i++)
+    {
+        IOS_CloseAsync(i, 0, 0);
+    }
+
+    IRQ_Disable();
+
+    // Set the stack pointer to the safe address space so we don't overwrite local variables when copying sections.
+    u32 new_sp = 0x808ffa00;
+    asm volatile("mr 1, %0" : : "r"(new_sp) : "memory");
+    patch_copy(dol, flush_range_copy);
 }

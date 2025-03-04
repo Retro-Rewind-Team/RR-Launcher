@@ -1,5 +1,5 @@
 /*
-    dol.h - definition of DOL (static executable) structure
+    patch.h - final game launching logic (see patch.c for details)
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,24 +17,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/* See: https://wiki.tockdom.com/wiki/DOL_(File_Format) */
-
-#ifndef RRC_DOL_H
-#define RRC_DOL_H
+#ifndef RRC_PATCH_H
+#define RRC_PATCH_H
 
 #include <gctypes.h>
+#include "dol.h"
 
-#define RRC_DOL_SECTION_COUNT 18
-
-struct rrc_dol
-{
-    u32 section[RRC_DOL_SECTION_COUNT];
-    u32 section_addr[RRC_DOL_SECTION_COUNT];
-    u32 section_size[RRC_DOL_SECTION_COUNT];
-
-    u32 bss_addr;
-    u32 bss_size;
-    u32 entry_point;
-};
+void patch_dol(struct rrc_dol *dol, void (*dc_flush_range)(void *, u32));
 
 #endif
