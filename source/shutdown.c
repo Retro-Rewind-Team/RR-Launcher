@@ -30,7 +30,7 @@ bool rrc_shutting_down = false;
 
 static void *rrc_shutdown_handler(void *)
 {
-    while (1)
+    while (1 && !rrc_shutting_down)
     {
         WPAD_ScanPads();
 

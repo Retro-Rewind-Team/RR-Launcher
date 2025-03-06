@@ -12,7 +12,8 @@
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++14",
-            "intelliSenseMode": "linux-clang-x64"
+            "intelliSenseMode": "linux-clang-x64",
+            "compilerArgs": ["-DPATCH_DOL_LEN=0"]
         }
     ],
     "version": 4

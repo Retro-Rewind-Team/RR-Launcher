@@ -20,6 +20,9 @@
 #ifndef RRC_LOADER_H
 #define RRC_LOADER_H
 
+#define RRC_BI2_SIZE 0x2000
+#define RRC_PATCH_COPY_ADDRESS 0x80900000
+
 /*
  * Spins until Mario Kart Wii is inserted into the disc drive.
  *
@@ -40,6 +43,6 @@ int rrc_loader_locate_data_part(u32 *part);
  * TODO: This routine should be resilient against things such as the SD card or disc being ejected.
  * This function should always return a status code on failure and NEVER CRASH. On success, it never returns.
  */
-int rrc_loader_load();
+void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi);
 
 #endif

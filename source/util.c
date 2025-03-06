@@ -1,5 +1,5 @@
 /*
-    dol.h - definition of DOL (static executable) structure
+    util.h - utility function implementations
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,24 +17,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/* See: https://wiki.tockdom.com/wiki/DOL_(File_Format) */
-
-#ifndef RRC_DOL_H
-#define RRC_DOL_H
-
 #include <gctypes.h>
 
-#define RRC_DOL_SECTION_COUNT 18
-
-struct rrc_dol
+u32 align_down(u32 num, u32 align_as)
 {
-    u32 section[RRC_DOL_SECTION_COUNT];
-    u32 section_addr[RRC_DOL_SECTION_COUNT];
-    u32 section_size[RRC_DOL_SECTION_COUNT];
+    return num & -align_as;
+}
 
-    u32 bss_addr;
-    u32 bss_size;
-    u32 entry_point;
-};
-
-#endif
+u32 align_up(u32 num, u32 align_as)
+{
+    return (num + align_as - 1) & -align_as;
+}
