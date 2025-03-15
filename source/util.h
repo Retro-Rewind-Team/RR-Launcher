@@ -24,6 +24,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "console.h"
+
 /*
     When this directive is defined and set to a value greater than 0,
     debug logging and some additional assertions are enabled.
@@ -72,10 +74,12 @@
 #if defined(DEBUG) && DEBUG >= 0
 /* define debug macros */
 
-#define rrc_dbg_printf(...)  \
-    do                       \
-    {                        \
-        printf(__VA_ARGS__); \
+#define rrc_dbg_printf(...)                           \
+    do                                                \
+    {                                                 \
+        rrc_con_cursor_seek_to(15, RRC_CON_EDGE_PAD); \
+        printf(RRC_CON_ANSI_CLEAR_LINE);              \
+        printf(__VA_ARGS__);                          \
     } while (0);
 
 #else

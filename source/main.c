@@ -32,6 +32,7 @@
 #include "time.h"
 #include "loader.h"
 #include "dol.h"
+#include "console.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -60,9 +61,10 @@ void video_init()
     // Allocate memory for the display in the uncached region
     xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
     // Initialise the console, required for printf
-    console_init(xfb, 20, 20, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    // SYS_STDIO_Report(true);
-    // Set up the video registers with the chosen mode
+    console_init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
+    //  SYS_STDIO_Report(true);
+    //  Set up the video registers with the chosen mode
     VIDEO_Configure(rmode);
     // Tell the video hardware where our display memory is
     VIDEO_SetNextFramebuffer(xfb);
@@ -82,6 +84,11 @@ int main(int argc, char **argv)
     // response codes for various library functions
     int res;
 
+    // init video, setup console framebuffer
+    video_init();
+
+    rrc_con_update("Spawn background threads", 0);
+
     // handles pressing the home button to exit
     rrc_dbg_printf("spawn shutdown background thread\n");
     lwp_t shutdown_thread = rrc_shutdown_spawn();
@@ -95,20 +102,19 @@ int main(int argc, char **argv)
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
-    // init video, setup console framebuffer
-    video_init();
-
-    // seek to start
-    printf("\x1b[0;0H");
+    rrc_con_update("Initialise controllers", 5);
 
     rrc_dbg_printf("init controllers\n");
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
+    rrc_con_update("Initialise DVD", 10);
+
     rrc_dbg_printf("init disk drive\n");
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
+    rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
     res = rrc_loader_await_mkw();
     CHECK_EXIT();
@@ -134,6 +140,7 @@ int main(int argc, char **argv)
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
     // Data partitions have the id 0.
 
+    rrc_con_update("Initialise DVD: Load Data Partition", 15);
     struct rrc_di_part_group part_groups[4] __attribute__((aligned(32)));
     res = rrc_di_unencrypted_read(&part_groups, sizeof(part_groups), RRC_DI_PART_GROUPS_OFFSET >> 2);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition group");
@@ -148,6 +155,8 @@ int main(int argc, char **argv)
     rrc_dbg_printf("data partition found at offset %x\n", data_part_offset << 2);
     CHECK_EXIT();
 
+    rrc_con_update("Initialise DVD: Read Data Partition", 17);
+
     res = rrc_di_open_partition(data_part_offset);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_open_partition");
 
@@ -159,9 +168,13 @@ int main(int argc, char **argv)
     rrc_dbg_printf("FST offset: %d\n", data_header->fst_offset << 2);
     rrc_dbg_printf("FST size: %d\n", data_header->fst_size << 2);
 
+    rrc_con_update("Await Network", 20);
+
     res = LWP_JoinThread(wiisocket_thread, NULL);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+
+    rrc_con_update("Initialise DVD: Read Game DOL", 25);
 
     // read dol
     struct rrc_dol *dol = (struct rrc_dol *)0x80901000;
@@ -191,9 +204,11 @@ int main(int argc, char **argv)
         RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_read section");
     }
 
+    rrc_con_update("Initialise DVD: Read Filesystem Table", 50);
+
     u32 mem1_hi = 0x81800000;
     u32 mem2_hi = *(u32 *)0x80003128;
-    rrc_dbg_printf("mem1 hi: %x\nmem2 hi %x\n", mem1_hi, mem2_hi);
+    rrc_dbg_printf("mem1 hi: %x, mem2 hi %x\n", mem1_hi, mem2_hi);
 
     u32 fst_size = data_header->fst_size << 2;
     u32 fst_dest = align_down(mem1_hi - fst_size, 32);
@@ -214,6 +229,8 @@ int main(int argc, char **argv)
     res = rrc_di_read(bi2, RRC_BI2_SIZE, 0x440 >> 2);
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_read for bi2");
     DCStoreRange(bi2, RRC_BI2_SIZE);
+
+    rrc_con_update("Prepare For Patching", 60);
 
     // start shutting down background threads to boot the game
 

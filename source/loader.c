@@ -27,6 +27,7 @@
 #include "loader.h"
 #include "shutdown.h"
 #include "res.h"
+#include "console.h"
 
 int rrc_loader_locate_data_part(u32 *data_part_offset)
 {
@@ -116,7 +117,7 @@ check_cover_register:
         gameId, sizeof(gameId), "%c%c%c%cD%02x", did.game_id[0],
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
-    printf("Game ID/Rev: %s\n", gameId);
+    rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
     CHECK_EXIT();
 
     return RRC_RES_OK;
@@ -125,6 +126,8 @@ check_cover_register:
 
 void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
 {
+    rrc_con_update("Prepare For Patching: Patch Memory Map", 65);
+
     // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
 
     *(u32 *)0xCD006C00 = 0x00000000;           // Reset `AI_CONTROL` to fix audio
@@ -150,6 +153,8 @@ void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
     }
     DCStoreRange((void *)0x80000000, 0x3400);
     ICInvalidateRange((void *)0x80000000, 0x3400);
+
+    rrc_con_update("Patch and Launch Game", 75);
 
     // The last step is to copy the sections from the safe space to where they actually need to be.
     // This requires copying the function itself to the safe address space so we don't overwrite ourselves.
