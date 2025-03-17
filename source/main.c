@@ -25,6 +25,8 @@
 #include <wiisocket.h>
 #include <ogc/wiilaunch.h>
 #include <string.h>
+#include <fat.h>
+#include <curl/curl.h>
 
 #include "util.h"
 #include "di.h"
@@ -33,6 +35,8 @@
 #include "dol.h"
 #include "console.h"
 #include "settings.h"
+#include "update/versionsfile.h"
+#include "update/update.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -141,6 +145,12 @@ interrupt_loop_end:
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
+    rrc_con_update("Initialise SD card", 6);
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+
+    int v = rrc_update_get_current_version();
+    rrc_dbg_printf("Current version: %i", v);
+
     rrc_con_update("Initialise DVD", 10);
 
     rrc_dbg_printf("init disk drive\n");
@@ -204,6 +214,8 @@ interrupt_loop_end:
     res = LWP_JoinThread(wiisocket_thread, NULL);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+
+    rrc_versionsfile_get_versions(NULL);
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
 
