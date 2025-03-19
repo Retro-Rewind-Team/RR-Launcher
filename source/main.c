@@ -215,7 +215,33 @@ interrupt_loop_end:
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
-    rrc_versionsfile_get_versions(NULL);
+    char *versionsfile = NULL;
+    char **result = NULL;
+    int count = 0;
+    int vres = rrc_versionsfile_get_versionsfile(&versionsfile);
+    rrc_con_update("Get Versions", 0);
+    if (vres < 0)
+    {
+        printf("couldnt get version file! res: %i\n", vres);
+        usleep(1000000000000);
+    }
+    int current = rrc_update_get_current_version();
+    printf("current ver: %i\n", current);
+    int ures = rrc_versionsfile_get_necessary_urls(versionsfile, current, &count, &result);
+    if (ures < 0)
+    {
+        printf("couldnt get urls! res: %i\n", ures);
+        usleep(1000000000000);
+    }
+    rrc_dbg_printf("%i updates\n", count);
+    struct rrc_update_state state =
+        {
+            .current_update_num = 0,
+            .d_ptr = NULL,
+            .num_updates = count,
+            .update_urls = result};
+
+    usleep(1000000000000);
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
 

@@ -22,65 +22,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <curl/curl.h>
 
 #include "versionsfile.h"
 #include "update.h"
 #include "../console.h"
 
 #define _RRC_VERSIONFILE "RetroRewind6/version.txt"
-
-/*
-    Returns an int specifying version information from a verstring.
-    E.g., 4.2.0 = 420
-    Returns -1 on failure.
-*/
-int _rrc_parse_verstring(char *verstring)
-{
-    /* major, minor, revision */
-    int parts[3] = {0, 0, 0};
-    int current = 0, started_at = 0;
-    int len = strlen(verstring);
-    for (int i = 0; i < len + 1; i++)
-    {
-        /* read until . or EOF, then extract that section */
-        if (verstring[i] == '.' || verstring[i] == '\0')
-        {
-            int sect_len = i - started_at;
-            if (sect_len == 0)
-                /* ??? */
-                return -1;
-
-            /* read this section */
-            char section[sect_len + 1];
-            int idx = 0;
-            for (int j = started_at; j < started_at + sect_len; j++)
-            {
-                section[idx] = verstring[j];
-                idx++;
-            }
-            section[sect_len] = '\0';
-
-            int section_l = strtol(section, NULL, 10);
-            parts[current] = section_l;
-            current++;
-            if (current > 2)
-            {
-                /* we read the rev now */
-                break;
-            }
-
-            started_at = i + 1;
-        }
-    }
-
-    int final = 0;
-    final += (parts[0] * 100);
-    final += (parts[1] * 10);
-    final += parts[2];
-
-    return final;
-}
 
 int rrc_update_get_current_version()
 {
@@ -105,7 +52,7 @@ int rrc_update_get_current_version()
     /* add null termination */
     verstring[sz] = '\0';
 
-    return _rrc_parse_verstring(verstring);
+    return rrc_versionsfile_parse_verstring(verstring);
 }
 
 int _rrc_zipdl_progress_callback(char *url,
@@ -132,14 +79,13 @@ size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
     return size * nmemb;
 }
 
-int rrc_update_download_zip(char *url)
+int rrc_update_download_zip(char *url, char **output)
 {
     CURLcode cres;
     CURL *curl = curl_easy_init();
     if (curl)
     {
         curl_easy_setopt(curl, CURLOPT_URL, url);
-        /* example.com is redirected, so we tell libcurl to follow redirection */
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, url);
@@ -150,10 +96,12 @@ int rrc_update_download_zip(char *url)
         cres = curl_easy_perform(curl);
         /* Check for errors */
         if (cres != CURLE_OK)
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
-                    curl_easy_strerror(cres));
-
-        printf("status code: %d", cres);
+        {
+            // TODO: report error better
+            printf("curl_easy_perform() failed: %s\n",
+                   curl_easy_strerror(cres));
+            return -cres;
+        }
 
         /* always cleanup */
         curl_easy_cleanup(curl);
@@ -172,4 +120,25 @@ int rrc_update_check_for_updates(struct rrc_update_state *ret)
     }
 
     return 0;
+}
+
+int rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res)
+{
+    res->ecode = RRC_UPDATE_EOK;
+    res->ccode = -1;
+
+    while (state->current_update_num < state->num_updates)
+    {
+        char *url = state->update_urls[state->current_update_num];
+        char *file;
+        int dlres = rrc_update_download_zip(url, file);
+        if (dlres < 0)
+        {
+            res->ccode = -dlres;
+            res->ecode = RRC_UPDATE_ECURL;
+            return -1;
+        }
+
+        state->current_update_num++;
+    }
 }
