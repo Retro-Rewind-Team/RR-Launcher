@@ -51,6 +51,7 @@ static char *my_stuff_options[] = {"Disabled", "Retro Rewind", "CTGP", NULL};
 static char *enabled_disabled_options[] = {"Disabled", "Enabled", NULL};
 static char *language_options[] = {"English", "Japanese", "French", "German", NULL};
 static char *launch_label = "Launch";
+static char *save_label = "Save changes";
 static char *exit_label = "Exit";
 
 enum rrc_settings_result rrc_settings_display()
@@ -62,6 +63,7 @@ enum rrc_settings_result rrc_settings_display()
         {.type = OPTION_TYPE_SELECT, .label = "My Stuff", .options = my_stuff_options, .margin_top = 1},
         {.type = OPTION_TYPE_SELECT, .label = "Language", .options = language_options},
         {.type = OPTION_TYPE_SELECT, .label = "Separate savegame", .options = enabled_disabled_options},
+        {.type = OPTION_TYPE_BUTTON, .label = save_label, .margin_top = 1},
         {.type = OPTION_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
     };
     const int option_count = sizeof(options) / sizeof(struct settings_option);
@@ -71,9 +73,14 @@ enum rrc_settings_result rrc_settings_display()
     u32 max_label_len = 0;
     for (int i = 0; i < option_count; i++)
     {
+        if (options[i].type == OPTION_TYPE_SELECT && options[i].options == NULL)
+        {
+            RRC_FATAL("'%s' is a select option but has a NULL pointer for its options array", options[i].label)
+        }
+
         if (options[i].type == OPTION_TYPE_SELECT && options[i].options[0] == NULL)
         {
-            RRC_FATAL("'%s' is a select option but contains no selectable options (array must have at least one element)");
+            RRC_FATAL("'%s' is a select option but contains an empty options array", options[i].label);
         }
 
         int len = strlen(options[i].label);
