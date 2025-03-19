@@ -20,12 +20,16 @@
 #ifndef RRC_CONSOLE_H
 #define RRC_CONSOLE_H
 
+#include <stdbool.h>
+
 #define _RRC_SPLASH "RETRO REWIND"
 #define _RRC_SPLASH_ROW 3
 
 #define _RRC_PROGRESS_ROW 6
 
 #define _RRC_ACTION_ROW 9
+
+#define _RRC_PRINTF_ROW 15
 
 #define RRC_CON_ANSI_FG_BLACK "\x1b[30;0m"
 #define RRC_CON_ANSI_FG_RED "\x1b[31;0m"
@@ -62,6 +66,7 @@
 #define RRC_CON_ANSI_BG_BRIGHT_WHITE "\x1b[47;1m"
 
 #define RRC_CON_ANSI_CLEAR_LINE "\x1b[0K"
+#define RRC_CON_ANSI_CLEAR_SCREEN "\x1b[2J"
 
 /* reset to black backgroumd, white foreground */
 #define RRC_CON_ANSI_CLR  \
@@ -80,6 +85,10 @@ void rrc_con_set_line_width_chars(int chars);
 
 void rrc_con_cursor_seek_to(int row, int column);
 
+void rrc_con_cursor_seek_to_row_centered(int row, int text_len);
+
+void rrc_con_print_text_centered(int row, char *text);
+
 void rrc_con_display_splash();
 
 void rrc_con_display_progress_bar();
@@ -87,5 +96,7 @@ void rrc_con_display_progress_bar();
 void rrc_con_display_action();
 
 void rrc_con_print_state();
+
+void rrc_con_clear(bool keep_splash);
 
 #endif

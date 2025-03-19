@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <gctypes.h>
 
 #include "console.h"
 
@@ -33,6 +34,9 @@
 #define DEBUG 1
 
 #define _RRC_STRING(s) #s
+
+// Whenever we have a loop waiting for wiipad button inputs, this timeout is used (in microseconds).
+#define RRC_WPAD_LOOP_TIMEOUT 20000
 
 #ifndef RRC_EXIT_DELAY
 #define RRC_EXIT_DELAY 1000000
@@ -74,12 +78,12 @@
 #if defined(DEBUG) && DEBUG >= 0
 /* define debug macros */
 
-#define rrc_dbg_printf(...)                           \
-    do                                                \
-    {                                                 \
-        rrc_con_cursor_seek_to(15, RRC_CON_EDGE_PAD); \
-        printf(RRC_CON_ANSI_CLEAR_LINE);              \
-        printf(__VA_ARGS__);                          \
+#define rrc_dbg_printf(...)                                        \
+    do                                                             \
+    {                                                              \
+        rrc_con_cursor_seek_to(_RRC_PRINTF_ROW, RRC_CON_EDGE_PAD); \
+        printf(RRC_CON_ANSI_CLEAR_LINE);                           \
+        printf(__VA_ARGS__);                                       \
     } while (0);
 
 #else

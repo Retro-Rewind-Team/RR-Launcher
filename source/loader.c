@@ -25,7 +25,7 @@
 #include "util.h"
 #include "di.h"
 #include "loader.h"
-#include "shutdown.h"
+#include <wiiuse/wpad.h>
 #include "res.h"
 #include "console.h"
 
@@ -75,8 +75,6 @@ int rrc_loader_await_mkw()
     bool disc_printed = false;
 
 check_cover_register:
-    CHECK_EXIT();
-
     res = rrc_di_get_low_cover_register(&status);
     RRC_ASSERTEQ(res, RRC_DI_RET_OK, "rrc_di_getlowcoverregister");
 
@@ -89,7 +87,12 @@ check_cover_register:
             printf("Please insert Mario Kart Wii into the console.\n");
             disc_printed = true;
         }
-        CHECK_EXIT();
+
+        WPAD_ScanPads();
+        if (WPAD_ButtonsDown(0) & (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME))
+        {
+            return RRC_RES_SHUTDOWN_INTERRUPT;
+        }
         usleep(DISKCHECK_DELAY);
         goto check_cover_register;
     }
@@ -118,7 +121,6 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
-    CHECK_EXIT();
 
     return RRC_RES_OK;
 #undef DISKCHECK_DELAY
@@ -168,7 +170,7 @@ void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
     ICInvalidateRange(patch_copy, PATCH_DOL_LEN);
 
     void (*flush_range_copy)() = (void *)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN, 32);
-    memcpy(flush_range_copy, DCFlushRange, 64);
+    memcpy(flush_range_copy, ICInvalidateRange, 64);
     DCFlushRange(flush_range_copy, 64);
     ICInvalidateRange(flush_range_copy, 64);
 

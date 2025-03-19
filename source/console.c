@@ -99,12 +99,23 @@ void _rrc_con_print_splash()
     puts(RRC_CON_ANSI_CLR);
 }
 
+void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
+{
+    int off = (rrc_con_line_width_chars / 2) - text_len;
+    rrc_con_cursor_seek_to(row, off);
+}
+
+void rrc_con_print_text_centered(int row, char *text)
+{
+    rrc_con_cursor_seek_to_row_centered(row, strlen(text) / 2);
+    printf("%s", text);
+}
+
 void rrc_con_display_splash()
 {
-    int middle = rrc_con_line_width_chars / 2;
     int splash_len = strlen(_RRC_SPLASH);
-    int middle_off = middle - (splash_len / 2);
-    rrc_con_cursor_seek_to(_RRC_SPLASH_ROW, middle_off);
+    int middle_off = splash_len / 2;
+    rrc_con_cursor_seek_to_row_centered(_RRC_SPLASH_ROW, middle_off);
     _rrc_con_print_splash();
 }
 
@@ -159,4 +170,13 @@ void rrc_con_print_state()
     rrc_con_display_splash();
     rrc_con_display_progress_bar();
     rrc_con_display_action();
+}
+
+void rrc_con_clear(bool keep_splash)
+{
+    printf(RRC_CON_ANSI_CLEAR_SCREEN);
+    if (keep_splash)
+    {
+        rrc_con_display_splash();
+    }
 }
