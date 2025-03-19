@@ -46,6 +46,7 @@ struct settings_option
     char **options;
 };
 
+// NOTE: all option arrays must have a NULL at the end, and the length (including the NULL) must be >= 2 (so there should be at least one option).
 static char *my_stuff_options[] = {"Disabled", "Retro Rewind", "CTGP", NULL};
 static char *enabled_disabled_options[] = {"Disabled", "Enabled", NULL};
 static char *language_options[] = {"English", "Japanese", "French", "German", NULL};
@@ -70,6 +71,11 @@ enum rrc_settings_result rrc_settings_display()
     u32 max_label_len = 0;
     for (int i = 0; i < option_count; i++)
     {
+        if (options[i].type == OPTION_TYPE_SELECT && options[i].options[0] == NULL)
+        {
+            RRC_FATAL("'%s' is a select option but contains no selectable options (array must have at least one element)");
+        }
+
         int len = strlen(options[i].label);
         if (len > max_label_len)
         {
@@ -132,6 +138,10 @@ enum rrc_settings_result rrc_settings_display()
             row++;
         }
 
+        row += 2;
+        rrc_con_cursor_seek_to(row, strlen(">> "));
+        printf("Use the D-Pad to navigate.");
+
         // use an inner loop just for scanning for button presses, rather than re-printing everything all the time
         // because the current scene will remain "static" until a button is pressed
         while (1)
@@ -143,29 +153,61 @@ enum rrc_settings_result rrc_settings_display()
                 return RRC_SETTINGS_EXIT;
             }
 
-            if ((pressed & RRC_WPAD_DOWN_MASK) && selected_idx < option_count - 1)
+            if (pressed & RRC_WPAD_DOWN_MASK)
             {
-                selected_idx++;
+                if (selected_idx < option_count - 1)
+                {
+                    selected_idx++;
+                }
+                else
+                {
+                    selected_idx = 0;
+                }
                 break;
             }
 
-            if ((pressed & RRC_WPAD_UP_MASK) && selected_idx > 0)
+            if (pressed & RRC_WPAD_UP_MASK)
             {
-                selected_idx--;
+                if (selected_idx > 0)
+                {
+                    selected_idx--;
+                }
+                else
+                {
+                    selected_idx = option_count - 1;
+                }
                 break;
             }
 
             struct settings_option *option = &options[selected_idx];
 
-            if ((pressed & RRC_WPAD_LEFT_MASK) && option->type == OPTION_TYPE_SELECT && option->selected_option > 0)
+            if ((pressed & RRC_WPAD_LEFT_MASK) && option->type == OPTION_TYPE_SELECT)
             {
-                option->selected_option--;
+                if (option->selected_option > 0)
+                {
+                    option->selected_option--;
+                }
+                else
+                {
+                    // pressed left even though we're at the first option already
+                    // "wrap" back to the last option (the one just before the `NULL` element)
+                    // we don't store the length, so loop there
+                    while (option->options[option->selected_option + 1] != NULL)
+                        option->selected_option++;
+                }
                 break;
             }
 
-            if ((pressed & RRC_WPAD_RIGHT_MASK) && option->type == OPTION_TYPE_SELECT && option->options[option->selected_option + 1] != NULL)
+            if ((pressed & RRC_WPAD_RIGHT_MASK) && option->type == OPTION_TYPE_SELECT)
             {
                 option->selected_option++;
+                // if we're now at a `NULL` (which every option array has at the end)
+                // it means the user pressed right while already at the last option,
+                // in which case we wrap back to the first one
+                if (option->options[option->selected_option] == NULL)
+                {
+                    option->selected_option = 0;
+                }
                 break;
             }
 
