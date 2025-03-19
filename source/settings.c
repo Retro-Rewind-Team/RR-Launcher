@@ -45,8 +45,9 @@ enum rrc_settings_result rrc_settings_display()
         {.type = OPTION_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
     };
     const int option_count = sizeof(options) / sizeof(struct settings_option);
-    int selected = 0;
+    int selected_idx = 0;
 
+    // used for padding the label string with spaces so that all options are aligned with each other
     u32 max_label_len = 0;
     for (int i = 0; i < option_count; i++)
     {
@@ -64,12 +65,12 @@ enum rrc_settings_result rrc_settings_display()
         {
             const struct settings_option *option = &options[i];
 
-            // add any extra newlines
+            // add any extra "newlines" (which means just seek)
             row += option->margin_top;
             rrc_con_cursor_seek_to(row, 0);
             printf(RRC_CON_ANSI_CLEAR_LINE);
 
-            bool is_selected = selected == i;
+            bool is_selected = selected_idx == i;
 
             if (is_selected)
             {
@@ -112,43 +113,44 @@ enum rrc_settings_result rrc_settings_display()
             row++;
         }
 
+        // use an inner loop just for scanning for button presses, rather than re-printing everything all the time
+        // because the current scene will remain "static" until a button is pressed
         while (1)
         {
             WPAD_ScanPads();
             int pressed = WPAD_ButtonsDown(0);
-            if (pressed & (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME))
+            if (pressed & RRC_WPAD_HOME_MASK)
             {
                 return RRC_SETTINGS_EXIT;
             }
 
-            if ((pressed & (WPAD_BUTTON_DOWN | WPAD_CLASSIC_BUTTON_DOWN)) && selected < option_count - 1)
+            if ((pressed & RRC_WPAD_DOWN_MASK) && selected_idx < option_count - 1)
             {
-                selected++;
+                selected_idx++;
                 break;
             }
 
-            if ((pressed & (WPAD_BUTTON_UP | WPAD_CLASSIC_BUTTON_UP)) && selected > 0)
+            if ((pressed & RRC_WPAD_UP_MASK) && selected_idx > 0)
             {
-                selected--;
+                selected_idx--;
                 break;
             }
 
-            struct settings_option *option = &options[selected];
+            struct settings_option *option = &options[selected_idx];
 
-            if ((pressed & (WPAD_BUTTON_LEFT | WPAD_CLASSIC_BUTTON_LEFT)) && option->type == OPTION_TYPE_SELECT && option->selected_option > 0)
+            if ((pressed & RRC_WPAD_LEFT_MASK) && option->type == OPTION_TYPE_SELECT && option->selected_option > 0)
             {
-
                 option->selected_option--;
                 break;
             }
 
-            if ((pressed & (WPAD_BUTTON_RIGHT | WPAD_CLASSIC_BUTTON_RIGHT)) && option->type == OPTION_TYPE_SELECT && option->options[option->selected_option + 1] != NULL)
+            if ((pressed & RRC_WPAD_RIGHT_MASK) && option->type == OPTION_TYPE_SELECT && option->options[option->selected_option + 1] != NULL)
             {
                 option->selected_option++;
                 break;
             }
 
-            if (pressed & (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A))
+            if (pressed & RRC_WPAD_A_MASK)
             {
                 if (option->label == launch_label)
                 {

@@ -103,17 +103,17 @@ int main(int argc, char **argv)
         WPAD_ScanPads();
 
         int pressed = WPAD_ButtonsDown(0);
-        if (pressed & (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME))
+        if (pressed & RRC_WPAD_HOME_MASK)
         {
             return 0;
         }
 
-        if (pressed & (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A))
+        if (pressed & RRC_WPAD_A_MASK)
         {
             break;
         }
 
-        if (pressed & (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS))
+        if (pressed & RRC_WPAD_PLUS_MASK)
         {
             switch (rrc_settings_display())
             {

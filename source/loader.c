@@ -89,7 +89,7 @@ check_cover_register:
         }
 
         WPAD_ScanPads();
-        if (WPAD_ButtonsDown(0) & (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME))
+        if (WPAD_ButtonsDown(0) & RRC_WPAD_HOME_MASK)
         {
             return RRC_RES_SHUTDOWN_INTERRUPT;
         }
