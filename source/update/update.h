@@ -44,8 +44,11 @@ int rrc_update_get_current_version();
 
 /*
     Downloads a Retro Rewind ZIP. Uses the console to display progress.
+    Stores on SD in the file given by `filename'.
+
+    Returns 0 on success, negative CURLcode status on error.
 */
-int rrc_update_download_zip(char *url, char **output);
+int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
 
 /*
     Check for updates. If there are updates, the return code is 0 and `ret' is populated with
@@ -61,6 +64,8 @@ enum rrc_update_ecode
     RRC_UPDATE_EOK = 0,
     /* CURL error. `ccode' is set to that error if this is set. */
     RRC_UPDATE_ECURL,
+    /* Could not open file */
+    RRC_UPDATE_INVFILE,
 };
 
 struct rrc_update_result

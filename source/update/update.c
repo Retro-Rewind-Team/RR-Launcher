@@ -22,12 +22,15 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <gctypes.h>
 
 #include "versionsfile.h"
 #include "update.h"
+#include "../util.h"
 #include "../console.h"
 
 #define _RRC_VERSIONFILE "RetroRewind6/version.txt"
+#define _RRC_UPDATE_ZIP_NAME "update.zip"
 
 int rrc_update_get_current_version()
 {
@@ -55,55 +58,69 @@ int rrc_update_get_current_version()
     return rrc_versionsfile_parse_verstring(verstring);
 }
 
-int _rrc_zipdl_progress_callback(char *url,
+int lp = -1;
+
+int _rrc_zipdl_progress_callback(int *numinfo,
                                  curl_off_t dltotal,
                                  curl_off_t dlnow,
                                  curl_off_t ultotal,
                                  curl_off_t ulnow)
 {
-    static int lp = -1;
-    int url_len = strlen(url);
-    char msg[url_len + 15];
-    snprintf(msg, url_len + 15, "Downloading %s", url);
     int progress = (dlnow * 100) / dltotal;
     if (progress != lp)
     {
         lp = progress;
+        char msg[100];
+        snprintf(msg, 100, "Downloading update %i of %i (%i/%i kB)", ((*numinfo) / 100) + 1, (*numinfo) % 100, (int)(dlnow / (curl_off_t)1000), (int)(dltotal / (curl_off_t)1000));
         rrc_con_update(msg, progress);
     }
     return 0;
 }
 
-size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+size_t _rrc_zipdl_write_data_callback(char *ptr, size_t size, size_t nmemb, FILE *stream)
 {
-    return size * nmemb;
+    size_t written = fwrite(ptr, size, nmemb, stream);
+    return written;
 }
 
-int rrc_update_download_zip(char *url, char **output)
+int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips)
 {
     CURLcode cres;
     CURL *curl = curl_easy_init();
+    FILE *fp;
+    int numinfo = (current_zip * 100) + max_zips;
     if (curl)
     {
+        fp = fopen(filename, "wb");
+        if (fp == NULL)
+        {
+            return -100;
+        }
+
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, url);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &numinfo);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_zipdl_progress_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_zipdl_write_data_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
         /* Perform the request, cres gets the return code */
         cres = curl_easy_perform(curl);
+
         /* Check for errors */
         if (cres != CURLE_OK)
         {
             // TODO: report error better
             printf("curl_easy_perform() failed: %s\n",
                    curl_easy_strerror(cres));
+
+            fclose(fp);
+            curl_easy_cleanup(curl);
             return -cres;
         }
 
-        /* always cleanup */
+        fclose(fp);
         curl_easy_cleanup(curl);
     }
 
@@ -130,15 +147,53 @@ int rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_resu
     while (state->current_update_num < state->num_updates)
     {
         char *url = state->update_urls[state->current_update_num];
-        char *file;
-        int dlres = rrc_update_download_zip(url, file);
-        if (dlres < 0)
+        char *zip;
+        int zipsize;
+        int dlres = rrc_update_download_zip(url, _RRC_UPDATE_ZIP_NAME, state->current_update_num, state->num_updates);
+
+        if (dlres == -100)
+        {
+            res->ccode = -1;
+            res->ecode = RRC_UPDATE_INVFILE;
+            return -1;
+        }
+        else if (dlres < 0)
         {
             res->ccode = -dlres;
             res->ecode = RRC_UPDATE_ECURL;
             return -1;
         }
 
+        struct stat sb;
+        int s = stat(_RRC_UPDATE_ZIP_NAME, &sb);
+        if (s == -1)
+        {
+            res->ccode = -1;
+            res->ecode = RRC_UPDATE_INVFILE;
+            return -1;
+        }
+
+        rrc_dbg_printf("update size: %llu bytes\n", sb.st_size);
+
+        /* TODO: apply zip (probably in a new method rrc_update_apply_zip or something)
+           Ideally would have proper progress reporting for how much has been applied but
+           not sure how feasible this is?
+           Need to stat the amount of files and stuff for that maybe?
+        */
+        rrc_con_update("Pretend it's applying the zip lol", 50);
+
+        usleep(5000000);
+
+        int rres = remove(_RRC_UPDATE_ZIP_NAME);
+        if (rres == -1)
+        {
+            res->ccode = -1;
+            res->ecode = RRC_UPDATE_INVFILE;
+            return -1;
+        }
+
         state->current_update_num++;
     }
+
+    return 0;
 }

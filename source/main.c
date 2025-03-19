@@ -226,7 +226,6 @@ interrupt_loop_end:
         usleep(1000000000000);
     }
     int current = rrc_update_get_current_version();
-    printf("current ver: %i\n", current);
     int ures = rrc_versionsfile_get_necessary_urls(versionsfile, current, &count, &result);
     if (ures < 0)
     {
@@ -241,9 +240,16 @@ interrupt_loop_end:
             .num_updates = count,
             .update_urls = result};
 
-    usleep(1000000000000);
+    struct rrc_update_result upres;
+    ures = rrc_update_do_updates(&state, &upres);
+    if (ures != 0)
+    {
+        printf("couldnt do update! ccode: %i, ecode: %i\n", upres.ccode, upres.ecode);
+        usleep(1000000000000);
+    }
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
+    usleep(1000000000000);
 
     // read dol
     struct rrc_dol *dol = (struct rrc_dol *)0x80901000;
