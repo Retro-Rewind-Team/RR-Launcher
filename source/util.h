@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <gctypes.h>
 
 #include "console.h"
 
@@ -33,6 +34,18 @@
 #define DEBUG 1
 
 #define _RRC_STRING(s) #s
+
+// Whenever we have a loop waiting for wiipad button inputs, this timeout is used (in microseconds).
+#define RRC_WPAD_LOOP_TIMEOUT 20000
+
+// We generally don't care if ccp A or wiimote A was pressed, so these macros allow checking for both at once.
+#define RRC_WPAD_A_MASK (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A)
+#define RRC_WPAD_HOME_MASK (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME)
+#define RRC_WPAD_PLUS_MASK (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS)
+#define RRC_WPAD_UP_MASK (WPAD_BUTTON_UP | WPAD_CLASSIC_BUTTON_UP)
+#define RRC_WPAD_RIGHT_MASK (WPAD_BUTTON_RIGHT | WPAD_CLASSIC_BUTTON_RIGHT)
+#define RRC_WPAD_DOWN_MASK (WPAD_BUTTON_DOWN | WPAD_CLASSIC_BUTTON_DOWN)
+#define RRC_WPAD_LEFT_MASK (WPAD_BUTTON_LEFT | WPAD_CLASSIC_BUTTON_LEFT)
 
 #ifndef RRC_EXIT_DELAY
 #define RRC_EXIT_DELAY 1000000
@@ -74,12 +87,12 @@
 #if defined(DEBUG) && DEBUG >= 0
 /* define debug macros */
 
-#define rrc_dbg_printf(...)                           \
-    do                                                \
-    {                                                 \
-        rrc_con_cursor_seek_to(15, RRC_CON_EDGE_PAD); \
-        printf(RRC_CON_ANSI_CLEAR_LINE);              \
-        printf(__VA_ARGS__);                          \
+#define rrc_dbg_printf(...)                                        \
+    do                                                             \
+    {                                                              \
+        rrc_con_cursor_seek_to(_RRC_PRINTF_ROW, RRC_CON_EDGE_PAD); \
+        printf(RRC_CON_ANSI_CLEAR_LINE);                           \
+        printf(__VA_ARGS__);                                       \
     } while (0);
 
 #else

@@ -27,12 +27,12 @@
 #include <string.h>
 
 #include "util.h"
-#include "shutdown.h"
 #include "di.h"
 #include "time.h"
 #include "loader.h"
 #include "dol.h"
 #include "console.h"
+#include "settings.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -87,11 +87,50 @@ int main(int argc, char **argv)
     // init video, setup console framebuffer
     video_init();
 
-    rrc_con_update("Spawn background threads", 0);
+    rrc_con_update("Initialise controllers", 0);
 
-    // handles pressing the home button to exit
-    rrc_dbg_printf("spawn shutdown background thread\n");
-    lwp_t shutdown_thread = rrc_shutdown_spawn();
+    rrc_dbg_printf("init controllers\n");
+    res = WPAD_Init();
+    RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
+
+#define INTERRUPT_TIME 3000000 /* 3 seconds */
+    rrc_con_clear(true);
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
+
+    for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
+    {
+        WPAD_ScanPads();
+
+        int pressed = WPAD_ButtonsDown(0);
+        if (pressed & RRC_WPAD_HOME_MASK)
+        {
+            return 0;
+        }
+
+        if (pressed & RRC_WPAD_A_MASK)
+        {
+            break;
+        }
+
+        if (pressed & RRC_WPAD_PLUS_MASK)
+        {
+            switch (rrc_settings_display())
+            {
+            case RRC_SETTINGS_LAUNCH:
+                goto interrupt_loop_end;
+            case RRC_SETTINGS_EXIT:
+                return 0;
+            }
+        }
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
+    }
+interrupt_loop_end:
+
+    rrc_con_clear(true);
+
+    rrc_con_update("Spawn background threads", 5);
 
     // Initializing the network can take fairly long (seconds).
     // It's not really needed right away anyway so we can do it on another thread in parallel to some of the disk reading
@@ -102,12 +141,6 @@ int main(int argc, char **argv)
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
-    rrc_con_update("Initialise controllers", 5);
-
-    rrc_dbg_printf("init controllers\n");
-    res = WPAD_Init();
-    RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
-
     rrc_con_update("Initialise DVD", 10);
 
     rrc_dbg_printf("init disk drive\n");
@@ -117,7 +150,6 @@ int main(int argc, char **argv)
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
     res = rrc_loader_await_mkw();
-    CHECK_EXIT();
 
     /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
         If some button such as A is pressed in that window, initialise the full channel.
@@ -153,7 +185,6 @@ int main(int argc, char **argv)
         RRC_FATAL("no data partition found on disk");
     }
     rrc_dbg_printf("data partition found at offset %x\n", data_part_offset << 2);
-    CHECK_EXIT();
 
     rrc_con_update("Initialise DVD: Read Data Partition", 17);
 
@@ -233,11 +264,6 @@ int main(int argc, char **argv)
     rrc_con_update("Prepare For Patching", 60);
 
     // start shutting down background threads to boot the game
-
-    rrc_dbg_printf("stopping shutdown handler...\n");
-    rrc_shutting_down = true;
-    rrc_shutdown_join(shutdown_thread);
-    rrc_dbg_printf("stopped.\n");
 
     WPAD_Shutdown();
 
