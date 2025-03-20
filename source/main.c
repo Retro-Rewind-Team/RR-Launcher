@@ -25,6 +25,8 @@
 #include <wiisocket.h>
 #include <ogc/wiilaunch.h>
 #include <string.h>
+#include <fat.h>
+#include <curl/curl.h>
 
 #include "util.h"
 #include "di.h"
@@ -33,6 +35,8 @@
 #include "dol.h"
 #include "console.h"
 #include "settings.h"
+#include "update/versionsfile.h"
+#include "update/update.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -141,6 +145,12 @@ interrupt_loop_end:
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
 
+    rrc_con_update("Initialise SD card", 6);
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+
+    int v = rrc_update_get_current_version();
+    rrc_dbg_printf("Current version: %i", v);
+
     rrc_con_update("Initialise DVD", 10);
 
     rrc_dbg_printf("init disk drive\n");
@@ -205,7 +215,41 @@ interrupt_loop_end:
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
+    char *versionsfile = NULL;
+    char **result = NULL;
+    int count = 0;
+    int vres = rrc_versionsfile_get_versionsfile(&versionsfile);
+    rrc_con_update("Get Versions", 0);
+    if (vres < 0)
+    {
+        printf("couldnt get version file! res: %i\n", vres);
+        usleep(1000000000000);
+    }
+    int current = rrc_update_get_current_version();
+    int ures = rrc_versionsfile_get_necessary_urls(versionsfile, current, &count, &result);
+    if (ures < 0)
+    {
+        printf("couldnt get urls! res: %i\n", ures);
+        usleep(1000000000000);
+    }
+    rrc_dbg_printf("%i updates\n", count);
+    struct rrc_update_state state =
+        {
+            .current_update_num = 0,
+            .d_ptr = NULL,
+            .num_updates = count,
+            .update_urls = result};
+
+    struct rrc_update_result upres;
+    ures = rrc_update_do_updates(&state, &upres);
+    if (ures != 0)
+    {
+        printf("couldnt do update! ccode: %i, ecode: %i\n", upres.ccode, upres.ecode);
+        usleep(1000000000000);
+    }
+
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
+    usleep(1000000000000);
 
     // read dol
     struct rrc_dol *dol = (struct rrc_dol *)0x80901000;
