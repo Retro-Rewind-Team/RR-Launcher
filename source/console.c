@@ -155,7 +155,8 @@ void rrc_con_display_progress_bar()
 
     putc(']', stdout);
     rrc_con_cursor_seek_to(_RRC_PROGRESS_ROW + 1, RRC_CON_EDGE_PAD);
-    printf("%i%%", rrc_con_progress_percent);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
+    printf("%i%c", rrc_con_progress_percent, '%');
 }
 
 void rrc_con_display_action()
