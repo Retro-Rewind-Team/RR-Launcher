@@ -27,6 +27,8 @@
 #include <string.h>
 #include <fat.h>
 #include <curl/curl.h>
+#include <sys/statvfs.h>
+#include <errno.h>
 
 #include "util.h"
 #include "di.h"
@@ -148,9 +150,6 @@ interrupt_loop_end:
     rrc_con_update("Initialise SD card", 6);
     RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
-    int v = rrc_update_get_current_version();
-    rrc_dbg_printf("Current version: %i", v);
-
     rrc_con_update("Initialise DVD", 10);
 
     rrc_dbg_printf("init disk drive\n");
@@ -226,31 +225,28 @@ interrupt_loop_end:
     rrc_con_update("Get Versions", 0);
     if (res < 0)
     {
-        printf("couldnt get version file! res: %i\n", res);
-        usleep(1000000000000);
+        RRC_FATAL("couldnt get version file! res: %i\n", res);
     }
     int current = rrc_update_get_current_version();
     RRC_ASSERT(current >= 0, "failed to read current version file");
+    rrc_dbg_printf("Current version: %i\n", current);
 
     res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, &count, &zip_urls, &update_versions);
     if (res < 0)
     {
-        printf("couldnt get urls! res: %i\n", res);
-        usleep(1000000000000);
+        RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
     }
 
     res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
     if (res < 0)
     {
-        printf("couldnt get urls! res: %i\n", res);
-        usleep(1000000000000);
+        RRC_FATAL("couldnt get files to remove! res: %i\n", res);
     }
 
     res = rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files);
     if (res < 0)
     {
-        printf("couldnt parse deleted files! res: %i\n", res);
-        usleep(1000000000000);
+        RRC_FATAL("couldnt parse deleted files! res: %i\n", res);
     }
     rrc_dbg_printf("%i updates\n", count);
     struct rrc_update_state state =
@@ -268,12 +264,10 @@ interrupt_loop_end:
     rrc_update_do_updates(&state, &upres);
     if (upres.ecode != RRC_UPDATE_EOK)
     {
-        printf("update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
-        usleep(1000000000000);
+        RRC_FATAL("Update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
     }
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
-    usleep(1000000000000);
 
     // read dol
     struct rrc_dol *dol = (struct rrc_dol *)0x80901000;
