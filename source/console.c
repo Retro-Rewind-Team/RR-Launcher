@@ -161,6 +161,9 @@ void rrc_con_display_progress_bar()
 
 void rrc_con_display_action()
 {
+    // clear two lines in case an action overflowed the line
+    rrc_con_cursor_seek_to(_RRC_ACTION_ROW + 1, RRC_CON_EDGE_PAD);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
     rrc_con_cursor_seek_to(_RRC_ACTION_ROW, RRC_CON_EDGE_PAD);
     printf(RRC_CON_ANSI_CLEAR_LINE);
     printf("Current action: %s\n", rrc_con_current_action);

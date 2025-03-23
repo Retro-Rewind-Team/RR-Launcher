@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <gctypes.h>
+#include <zip.h>
+#include <errno.h>
 
 #include "versionsfile.h"
 #include "update.h"
@@ -56,6 +58,28 @@ int rrc_update_get_current_version()
     verstring[sz] = '\0';
 
     return rrc_versionsfile_parse_verstring(verstring);
+}
+
+int rrc_update_set_current_version(int version)
+{
+    int p1 = version / 100;
+    version %= 100;
+    int p2 = version / 10;
+    version %= 10;
+
+    char out[32];
+    int written = snprintf(out, sizeof(out), "%d.%d.%d", p1, p2, version);
+    RRC_ASSERT(written < sizeof(out), "version string too long");
+    FILE *file = fopen(_RRC_VERSIONFILE, "w");
+    if (file == NULL)
+        return -5;
+
+    if (fwrite(out, 1, written, file) != written)
+    {
+        return -4;
+    }
+
+    return fclose(file);
 }
 
 int lp = -1;
@@ -139,61 +163,194 @@ int rrc_update_check_for_updates(struct rrc_update_state *ret)
     return 0;
 }
 
-int rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res)
+#define RETURN_IO_ERR(err)            \
+    do                                \
+    {                                 \
+        res->ecode = err;             \
+        res->inner.errnocode = errno; \
+        return;                       \
+    } while (0);
+
+/**
+ * Creates any directories for a given path like "a/b/c/d.txt", one at a time, starting with the outermost dir.
+ */
+static void mkdir_recursive(const char *fp, struct rrc_update_result *res)
+{
+    char tmp_path[PATH_MAX];
+    RRC_ASSERT(strlen(fp) < PATH_MAX, "path should never be longer than PATH_MAX");
+
+    // start at 1 to skip any leading slash
+    for (int i = 1; i < strlen(fp); i++)
+    {
+        if (fp[i] == '/')
+        {
+            strncpy(tmp_path, fp, i);
+            tmp_path[i] = '\0';
+            int err = mkdir(tmp_path, 0777);
+            if (err != 0 && errno != EEXIST)
+            {
+                RETURN_IO_ERR(RRC_UPDATE_EMKDIR);
+            }
+        }
+    }
+}
+
+void rrc_update_extract_zip_archive(struct rrc_update_result *res)
+{
+    int zip_err;
+    struct zip *archive = zip_open(_RRC_UPDATE_ZIP_NAME, ZIP_CHECKCONS | ZIP_RDONLY, &zip_err);
+    if (archive == NULL)
+    {
+        res->ecode = RRC_UPDATE_EOPEN_ZIP;
+        res->inner.ziperr = zip_err;
+        return;
+    }
+
+    u32 zip_entries = zip_get_num_entries(archive, 0);
+    char buf[4096];
+
+    for (int i = 0; i < zip_entries; i++)
+    {
+        zip_stat_t stat;
+        int err = zip_stat_index(archive, i, 0, &stat);
+        if (err != 0 || !(stat.valid & (ZIP_STAT_SIZE | ZIP_STAT_NAME)) || stat.name[0] == 0)
+        {
+            RETURN_IO_ERR(RRC_UPDATE_EOPEN_AR_FILE);
+        }
+
+        if (stat.name[strlen(stat.name) - 1] == '/')
+        {
+            // Ignore directories. They are automatically created when processing files.
+            continue;
+        }
+
+        zip_file_t *zip_file = zip_fopen_index(archive, i, ZIP_FL_ENC_UTF_8);
+        if (!zip_file)
+        {
+            res->ecode = RRC_UPDATE_EOPEN_AR_FILE;
+            res->inner.ziperr = -1;
+            return;
+        }
+
+        const char *filepath = stat.name;
+
+        char message[128];
+        snprintf(message, sizeof(message), "Extracting %s (%d/%d)", filepath, i + 1, zip_entries);
+        rrc_con_update(message, ((f64)(i + 1) / (f64)zip_entries) * 100);
+
+        FILE *outfile = fopen(filepath, "w");
+        if (!outfile)
+        {
+            // We couldn't create the file. This can happen if we have a file path like "a/b.txt" and directory "a" doesn't exist.
+            // At least this ENOENT case is recoverable by recursively creating the missing directories, so only return error for all other errors.
+            if (errno != ENOENT)
+            {
+                RETURN_IO_ERR(RRC_UPDATE_EOPEN_OUTFILE);
+            }
+
+            mkdir_recursive(filepath, res);
+            if (res->ecode != RRC_UPDATE_EOK)
+            {
+                return;
+            }
+
+            outfile = fopen(filepath, "w");
+            if (!outfile)
+            {
+                // We're still getting errors when opening the file even after creating missing directories. Nothing more we can do.
+                RETURN_IO_ERR(RRC_UPDATE_EOPEN_OUTFILE);
+            }
+        }
+
+        int read;
+        while ((read = zip_fread(zip_file, buf, sizeof(buf))) > 0)
+        {
+            int written = fwrite(buf, 1, read, outfile);
+            if (written != read)
+            {
+                RETURN_IO_ERR(RRC_UPDATE_EWRITE_OUT);
+            }
+        }
+
+        if (read < 0)
+        {
+            RETURN_IO_ERR(RRC_UPDATE_EREAD_AR);
+        }
+
+        fclose(outfile);
+    }
+
+    zip_close(archive);
+}
+
+void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res)
 {
     res->ecode = RRC_UPDATE_EOK;
-    res->ccode = -1;
 
     while (state->current_update_num < state->num_updates)
     {
         char *url = state->update_urls[state->current_update_num];
-        char *zip;
-        int zipsize;
         int dlres = rrc_update_download_zip(url, _RRC_UPDATE_ZIP_NAME, state->current_update_num, state->num_updates);
 
         if (dlres == -100)
         {
-            res->ccode = -1;
             res->ecode = RRC_UPDATE_INVFILE;
-            return -1;
+            return;
         }
         else if (dlres < 0)
         {
-            res->ccode = -dlres;
+            res->inner.ccode = -dlres;
             res->ecode = RRC_UPDATE_ECURL;
-            return -1;
+            return;
         }
 
         struct stat sb;
         int s = stat(_RRC_UPDATE_ZIP_NAME, &sb);
         if (s == -1)
         {
-            res->ccode = -1;
+            res->inner.ccode = -1;
             res->ecode = RRC_UPDATE_INVFILE;
-            return -1;
+            return;
         }
 
         rrc_dbg_printf("update size: %llu bytes\n", sb.st_size);
 
-        /* TODO: apply zip (probably in a new method rrc_update_apply_zip or something)
-           Ideally would have proper progress reporting for how much has been applied but
-           not sure how feasible this is?
-           Need to stat the amount of files and stuff for that maybe?
-        */
-        rrc_con_update("Pretend it's applying the zip lol", 50);
-
-        usleep(5000000);
+        rrc_update_extract_zip_archive(res);
+        if (res->ecode != RRC_UPDATE_EOK)
+        {
+            return;
+        }
 
         int rres = remove(_RRC_UPDATE_ZIP_NAME);
         if (rres == -1)
         {
-            res->ccode = -1;
             res->ecode = RRC_UPDATE_INVFILE;
-            return -1;
+            return;
+        }
+
+        // Now remove any deleted files.
+        for (int i = 0; i < state->num_deleted_files; i++)
+        {
+            struct rrc_versionsfile_deleted_file *file = &state->deleted_files[i];
+            if (file->version == state->update_versions[state->current_update_num])
+            {
+                char out[100];
+                snprintf(out, 100, "Removing deleted file %s\n", file->path);
+                rrc_con_update(out, 100);
+                int rmres = remove(file->path);
+                if (rmres != 0 && errno != ENOENT)
+                {
+                    RETURN_IO_ERR(RRC_UPDATE_INVFILE);
+                }
+            }
+        }
+
+        // Update the version.txt file
+        int sdres = rrc_update_set_current_version(state->update_versions[state->current_update_num]);
+        if (sdres < 0) {
+            RETURN_IO_ERR(RRC_UPDATE_EWRITE_VERSION);
         }
 
         state->current_update_num++;
     }
-
-    return 0;
 }
