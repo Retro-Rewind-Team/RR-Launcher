@@ -19,6 +19,12 @@
 #ifndef RRC_VERSIONSFILE_H
 #define RRC_VERSIONSFILE_H
 
+struct rrc_versionsfile_deleted_file
+{
+    int version;
+    char *path;
+};
+
 /*
     in: input string
     by: char to split by
@@ -48,10 +54,19 @@ int rrc_versionsfile_parse_verstring(char *verstring);
 int rrc_versionsfile_get_versionsfile(char **result);
 
 /*
+    Get files that were removed from each version.
+    On success, return code is 0.
+    On failure, return code is negative CURL return code and `result' is NULL.
+*/
+int rrc_versionsfile_get_removed_files(char **result);
+
+/*
     Get an array of all URLs we need to download, where the first index needs downloading first.
     On success, return code is 0 and `result' is populated with an array of strings and `count' is set to the amount of entries.
     On failure, return code is a negative code, `result' is NULL, and `count' is 0.
 */
-int rrc_versionsfile_get_necessary_urls(char *versionsfile, int current_version, int *count, char ***result);
+int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *count, char ***result, int **versions);
+
+int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt);
 
 #endif

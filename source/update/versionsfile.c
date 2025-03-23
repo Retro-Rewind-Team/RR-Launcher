@@ -26,6 +26,7 @@
 #include "versionsfile.h"
 
 #define _RRC_VERSIONSFILE_URL "http://update.rwfc.net:8000/RetroRewind/RetroRewindVersion.txt"
+#define _RRC_VERSIONS_FILE_REMOVED_URL "http://update.rwfc.net:8000/RetroRewind/RetroRewindDelete.txt"
 // max array size
 #define _RRC_SPLIT_LIM 4096
 
@@ -76,13 +77,13 @@ int rrc_versionsfile_parse_verstring(char *verstring)
     return final;
 }
 
-struct versioninfo
+struct ptr_len_pair
 {
     int len;
     char *ptr;
 };
 
-int _rrc_versionsfile_progress_callback(void *unused,
+int _rrc_versionsfile_progress_callback(char *update,
                                         curl_off_t dltotal,
                                         curl_off_t dlnow,
                                         curl_off_t ultotal,
@@ -93,14 +94,14 @@ int _rrc_versionsfile_progress_callback(void *unused,
     if (progress != lp)
     {
         lp = progress;
-        rrc_con_update("Fetching Version Info", progress);
+        rrc_con_update(update, progress);
     }
     return 0;
 }
 
 size_t _rrc_versionsfile_write_callback(char *ptr, size_t size, size_t nmemb, void *ss)
 {
-    struct versioninfo *s = (struct versioninfo *)ss;
+    struct ptr_len_pair *s = (struct ptr_len_pair *)ss;
     size_t new_len = s->len + size * nmemb;
     s->ptr = realloc(s->ptr, new_len + 1);
     if (s->ptr == NULL)
@@ -118,7 +119,7 @@ size_t _rrc_versionsfile_write_callback(char *ptr, size_t size, size_t nmemb, vo
 
 int rrc_versionsfile_get_versionsfile(char **result)
 {
-    struct versioninfo s;
+    struct ptr_len_pair s;
     s.len = 0;
     s.ptr = malloc(s.len + 1);
     if (s.ptr == NULL)
@@ -138,6 +139,7 @@ int rrc_versionsfile_get_versionsfile(char **result)
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_versionsfile_progress_callback);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *)"Fetching Version Info");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_versionsfile_write_callback);
         res = curl_easy_perform(curl);
@@ -159,6 +161,44 @@ int rrc_versionsfile_get_versionsfile(char **result)
         *result = s.ptr;
     }
 
+    return 0;
+}
+
+int rrc_versionsfile_get_removed_files(char **result)
+{
+    struct ptr_len_pair s;
+    s.len = 0;
+    s.ptr = malloc(s.len + 1);
+    if (s.ptr == NULL)
+    {
+        printf("malloc failed!");
+        return -1;
+    }
+    s.ptr[0] = '\0';
+
+    CURL *curl = curl_easy_init();
+    if (curl)
+    {
+        curl_easy_setopt(curl, CURLOPT_URL, _RRC_VERSIONS_FILE_REMOVED_URL);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_versionsfile_progress_callback);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *)"Fetching Removed Files");
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_versionsfile_write_callback);
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK)
+        {
+            // TODO: report error better
+            printf("curl_easy_perform() failed: %s\n",
+                   curl_easy_strerror(res));
+            return -res;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
+    *result = s.ptr;
     return 0;
 }
 
@@ -224,7 +264,7 @@ void rrc_versionsfile_free_split(char **array, int count)
     free(array);
 }
 
-int rrc_versionsfile_get_necessary_urls(char *versionsfile, int current_version, int *uamt, char ***result)
+int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *uamt, char ***urls, int **versions)
 {
     /*
         We need to read the file line-wise and also space-wise.
@@ -235,9 +275,10 @@ int rrc_versionsfile_get_necessary_urls(char *versionsfile, int current_version,
         Where version is a normal verstring we can parse to an int, and url is the zip
         url for that version.
         We parse each verstring, and if it yields a greater absolute value than our current version,
-        we parse the url associated with it and ass it to the list of updates.
+        we parse the url associated with it and add it to the list of updates.
     */
-    *result = malloc(_RRC_SPLIT_LIM);
+    *urls = malloc(_RRC_SPLIT_LIM);
+    *versions = malloc(_RRC_SPLIT_LIM);
 
     char **lines;
     int count;
@@ -286,7 +327,8 @@ int rrc_versionsfile_get_necessary_urls(char *versionsfile, int current_version,
 
         if (verint > current_version)
         {
-            (*result)[update_idx] = parts[1];
+            (*versions)[update_idx] = verint;
+            (*urls)[update_idx] = parts[1];
             update_idx++;
         }
         else
@@ -300,11 +342,75 @@ int rrc_versionsfile_get_necessary_urls(char *versionsfile, int current_version,
 
     if (update_idx == 0) /* no updates needed */
     {
-        *result = NULL;
+        *urls = NULL;
     }
 
     *uamt = update_idx;
 
+    rrc_versionsfile_free_split(lines, count);
+    return 0;
+}
+
+int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt)
+{
+    *output = malloc(sizeof(struct rrc_versionsfile_deleted_file) * _RRC_SPLIT_LIM);
+    int output_idx = 0;
+
+    char **lines;
+    int count;
+    int res = rrc_versionsfile_split_by(input, '\n', &lines, &count);
+    if (res < 0)
+    {
+        // TODO: report these errors better
+        printf("failed to split deleted versionfile: ret = %i\n", res);
+        return res;
+    }
+    else if (res == 2)
+    {
+        printf("delete versionfile had greater than 4096 entries!!! corrupted file?\n");
+        rrc_versionsfile_free_split(lines, count);
+        return -1;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        char **parts;
+        int parts_count;
+        res = rrc_versionsfile_split_by(lines[i], ' ', &parts, &parts_count);
+        if (res < 0)
+        {
+            printf("failed to split deleted versionfile line: ret = %i\n", res);
+            return res;
+        }
+
+        int verint = rrc_versionsfile_parse_verstring(parts[0]);
+
+        if (verint == -1)
+        {
+            rrc_versionsfile_free_split(lines, count);
+            /* give this unique error code */
+            return -3;
+        }
+
+        if (verint > current_version)
+        {
+            struct rrc_versionsfile_deleted_file file = {
+                .version = verint,
+                .path = parts[1]};
+
+            (*output)[output_idx] = file;
+            output_idx++;
+        }
+        else
+        {
+            free(parts[1]);
+        }
+
+        free(parts[0]);
+        free(parts);
+    }
+
+    *amt = output_idx;
     rrc_versionsfile_free_split(lines, count);
     return 0;
 }

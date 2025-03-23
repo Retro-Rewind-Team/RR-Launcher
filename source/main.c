@@ -216,20 +216,40 @@ interrupt_loop_end:
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
     char *versionsfile = NULL;
-    char **result = NULL;
+    char *deleted_versionsfile = NULL;
+    int num_deleted_files = 0;
+    struct rrc_versionsfile_deleted_file *deleted_files = NULL;
+    char **zip_urls = NULL;
+    int *update_versions = NULL;
     int count = 0;
-    int vres = rrc_versionsfile_get_versionsfile(&versionsfile);
+    res = rrc_versionsfile_get_versionsfile(&versionsfile);
     rrc_con_update("Get Versions", 0);
-    if (vres < 0)
+    if (res < 0)
     {
-        printf("couldnt get version file! res: %i\n", vres);
+        printf("couldnt get version file! res: %i\n", res);
         usleep(1000000000000);
     }
     int current = rrc_update_get_current_version();
-    int ures = rrc_versionsfile_get_necessary_urls(versionsfile, current, &count, &result);
-    if (ures < 0)
+    RRC_ASSERT(current >= 0, "failed to read current version file");
+
+    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, &count, &zip_urls, &update_versions);
+    if (res < 0)
     {
-        printf("couldnt get urls! res: %i\n", ures);
+        printf("couldnt get urls! res: %i\n", res);
+        usleep(1000000000000);
+    }
+
+    res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
+    if (res < 0)
+    {
+        printf("couldnt get urls! res: %i\n", res);
+        usleep(1000000000000);
+    }
+
+    res = rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files);
+    if (res < 0)
+    {
+        printf("couldnt parse deleted files! res: %i\n", res);
         usleep(1000000000000);
     }
     rrc_dbg_printf("%i updates\n", count);
@@ -238,13 +258,17 @@ interrupt_loop_end:
             .current_update_num = 0,
             .d_ptr = NULL,
             .num_updates = count,
-            .update_urls = result};
+            .update_urls = zip_urls,
+            .update_versions = update_versions,
+            .current_version = current,
+            .num_deleted_files = num_deleted_files,
+            .deleted_files = deleted_files};
 
     struct rrc_update_result upres;
-    ures = rrc_update_do_updates(&state, &upres);
-    if (ures != 0)
+    rrc_update_do_updates(&state, &upres);
+    if (upres.ecode != RRC_UPDATE_EOK)
     {
-        printf("couldnt do update! ccode: %i, ecode: %i\n", upres.ccode, upres.ecode);
+        printf("update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
         usleep(1000000000000);
     }
 

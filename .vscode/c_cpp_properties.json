@@ -7,6 +7,7 @@
                 "/opt/devkitpro/libogc/include",
                 "/opt/devkitpro/libogc/include/**",
                 "/opt/devkitpro/portlibs/ppc/include",
+                "/opt/devkitpro/portlibs/wii/include",
                 "/opt/devkitpro/devkitPPC/powerpc-eabi/include"
             ],
             "defines": [],

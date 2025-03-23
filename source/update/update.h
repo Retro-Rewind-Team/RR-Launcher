@@ -32,6 +32,14 @@ struct rrc_update_state
     char *d_ptr;
     /* All URLs for updates, in order. Length = num_updates */
     char **update_urls;
+    /* Version of each update. Has the same length as `update_urls` and each index into update_urls is also valid for update_versions */
+    int *update_versions;
+    /* The current version. */
+    int current_version;
+    /* Amount of files to delete. */
+    int num_deleted_files;
+    /* Files to delete. */
+    struct rrc_versionsfile_deleted_file *deleted_files;
 };
 
 /*
@@ -41,6 +49,13 @@ struct rrc_update_state
     SD driver must be loaded for this to work.
 */
 int rrc_update_get_current_version();
+
+/*
+    Writes the specified version int into version.txt.
+    Returns negative status on failure.
+    SD driver must be loaded for this to work.
+*/
+int rrc_update_set_current_version(int version);
 
 /*
     Downloads a Retro Rewind ZIP. Uses the console to display progress.
@@ -62,18 +77,45 @@ enum rrc_update_ecode
 {
     /* Success */
     RRC_UPDATE_EOK = 0,
+
     /* CURL error. `ccode' is set to that error if this is set. */
     RRC_UPDATE_ECURL,
+
+    /* IO Errors */
     /* Could not open file */
     RRC_UPDATE_INVFILE,
+    /* Failed to create directories for file */
+    RRC_UPDATE_EMKDIR,
+    /* Failed to open/create output file for the extracted file. */
+    RRC_UPDATE_EOPEN_OUTFILE,
+    /* Failed to open or stat file in zip archive. */
+    RRC_UPDATE_EOPEN_AR_FILE,
+    /* Failed to read archive file contents. */
+    RRC_UPDATE_EREAD_AR,
+    /* Failed to write archive contents into output file on SD card. */
+    RRC_UPDATE_EWRITE_OUT,
+    /* Failed to write version.txt file. */
+    RRC_UPDATE_EWRITE_VERSION,
+
+    /* ZIP Errors */
+    /* Failed to open the downloaded update ZIP file */
+    RRC_UPDATE_EOPEN_ZIP
 };
+
+typedef union
+{
+    /* defined if ecode == ECURL */
+    CURLcode ccode;
+    /* defined for IO errors except INVFILE */
+    int errnocode;
+    /* defined for ZIP errors */
+    int ziperr;
+} rrc_update_result_inner;
 
 struct rrc_update_result
 {
-    /* always defined */
     enum rrc_update_ecode ecode;
-    /* -1 if error is not a curl error */
-    CURLcode ccode;
+    rrc_update_result_inner inner;
 };
 
 /*
@@ -90,6 +132,6 @@ int rrc_update_ecode_to_string(int code);
     Returns 0 on success and a negative code on fail.
     `res' is a pointer to a valid `struct rrc_update_result' on return.
 */
-int rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res);
+void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res);
 
 #endif
