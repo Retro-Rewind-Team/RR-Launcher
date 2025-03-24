@@ -30,6 +30,7 @@
 #include "update.h"
 #include "../util.h"
 #include "../console.h"
+#include "../time.h"
 
 #define _RRC_VERSIONFILE "RetroRewind6/version.txt"
 #define _RRC_UPDATE_ZIP_NAME "update.zip"
@@ -83,6 +84,8 @@ int rrc_update_set_current_version(int version)
 }
 
 int lp = -1;
+rrc_time_tick last_measurement_from = -1;
+curl_off_t last_second_amt_dl = 0;
 
 int _rrc_zipdl_progress_callback(int *numinfo,
                                  curl_off_t dltotal,
@@ -90,21 +93,75 @@ int _rrc_zipdl_progress_callback(int *numinfo,
                                  curl_off_t ultotal,
                                  curl_off_t ulnow)
 {
+    /* 100kB chunks */
+#define _RRC_PROGRESS_UPD_CHUNKSIZE 100000
+
+    /* update download speed every second */
+#define _RRC_PROGRESS_UPD_SPEED_INC 1000
     int progress = (dlnow * 100) / dltotal;
-    if (progress != lp)
+    if (diff_msec(last_measurement_from, gettime()) > _RRC_PROGRESS_UPD_SPEED_INC || last_measurement_from < 0)
     {
-        lp = progress;
+        last_measurement_from = gettime();
+        last_second_amt_dl = dlnow - last_second_amt_dl;
+    }
+
+    int chunk = dlnow / _RRC_PROGRESS_UPD_CHUNKSIZE;
+    if (chunk != lp)
+    {
+        lp = chunk;
         char msg[100];
-        snprintf(msg, 100, "Downloading update %i of %i (%i/%i kB)", ((*numinfo) / 100) + 1, (*numinfo) % 100, (int)(dlnow / (curl_off_t)1000), (int)(dltotal / (curl_off_t)1000));
+        snprintf(
+            msg,
+            100,
+            "Downloading update %i of %i - %i kB/s (%i/%i kB)",
+            ((*numinfo) / 100) + 1,
+            (*numinfo) % 100,
+            (int)(last_second_amt_dl / 1000),
+            (int)(dlnow / (curl_off_t)1000),
+            (int)(dltotal / (curl_off_t)1000));
+
         rrc_con_update(msg, progress);
     }
     return 0;
+#undef _RRC_PROGRESS_UPD_CHUNKSIZE
 }
 
 size_t _rrc_zipdl_write_data_callback(char *ptr, size_t size, size_t nmemb, FILE *stream)
 {
     size_t written = fwrite(ptr, size, nmemb, stream);
     return written;
+}
+
+size_t _rrc_update_writefunction_empty(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    return size * nmemb;
+}
+
+/*
+    Get the content-length of a ZIP download in bytes.
+*/
+int _rrc_update_get_zip_size(char *url, curl_off_t *size)
+{
+    CURLcode cres;
+    CURL *curl = curl_easy_init();
+    if (curl)
+    {
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_update_writefunction_empty);
+        cres = curl_easy_perform(curl);
+        if (cres != CURLE_OK)
+        {
+            return cres;
+        }
+        cres = curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, size);
+        curl_easy_cleanup(curl);
+        return cres;
+    }
+
+    return 0;
 }
 
 int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips)
@@ -207,15 +264,30 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
     }
 
     u32 zip_entries = zip_get_num_entries(archive, 0);
+
     char buf[4096];
 
     for (int i = 0; i < zip_entries; i++)
     {
         zip_stat_t stat;
         int err = zip_stat_index(archive, i, 0, &stat);
-        if (err != 0 || !(stat.valid & (ZIP_STAT_SIZE | ZIP_STAT_NAME)) || stat.name[0] == 0)
+        if (err != 0 || !(stat.valid & (ZIP_STAT_SIZE | ZIP_STAT_NAME | ZIP_STAT_SIZE)) || stat.name[0] == 0)
         {
             RETURN_IO_ERR(RRC_UPDATE_EOPEN_AR_FILE);
+        }
+
+        long sd_free = sd_get_free_space();
+        if (sd_free == -1)
+        {
+            res->ecode = RRC_UPDATE_ESD_SZ;
+            res->inner.errnocode = errno;
+            return;
+        }
+        else if (stat.size > sd_free)
+        {
+            res->ecode = RRC_UPDATE_EZIP_EX_SPC;
+            res->inner.errnocode = ENOSPC;
+            return;
         }
 
         if (stat.name[strlen(stat.name) - 1] == '/')
@@ -290,6 +362,31 @@ void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_res
     while (state->current_update_num < state->num_updates)
     {
         char *url = state->update_urls[state->current_update_num];
+
+        curl_off_t zipsz;
+        int szres = _rrc_update_get_zip_size(url, &zipsz);
+        if (szres != 0)
+        {
+            res->ecode = RRC_UPDATE_ECURL;
+            res->inner.ccode = szres;
+            return;
+        }
+
+        unsigned long sd_free = sd_get_free_space();
+        if (sd_free == -1)
+        {
+            res->ecode = RRC_UPDATE_ESD_SZ;
+            res->inner.errnocode = errno;
+            return;
+        }
+
+        if (zipsz > sd_free)
+        {
+            res->ecode = RRC_UPDATE_EZIP_SPC;
+            res->inner.errnocode = ENOSPC;
+            return;
+        }
+
         int dlres = rrc_update_download_zip(url, _RRC_UPDATE_ZIP_NAME, state->current_update_num, state->num_updates);
 
         if (dlres == -100)
@@ -312,8 +409,6 @@ void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_res
             res->ecode = RRC_UPDATE_INVFILE;
             return;
         }
-
-        rrc_dbg_printf("update size: %llu bytes\n", sb.st_size);
 
         rrc_update_extract_zip_archive(res);
         if (res->ecode != RRC_UPDATE_EOK)
@@ -347,7 +442,8 @@ void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_res
 
         // Update the version.txt file
         int sdres = rrc_update_set_current_version(state->update_versions[state->current_update_num]);
-        if (sdres < 0) {
+        if (sdres < 0)
+        {
             RETURN_IO_ERR(RRC_UPDATE_EWRITE_VERSION);
         }
 

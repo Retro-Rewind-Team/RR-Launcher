@@ -96,6 +96,12 @@ enum rrc_update_ecode
     RRC_UPDATE_EWRITE_OUT,
     /* Failed to write version.txt file. */
     RRC_UPDATE_EWRITE_VERSION,
+    /* Failed to get free space on SD card */
+    RRC_UPDATE_ESD_SZ,
+    /* Not enough space on SD card to download ZIP */
+    RRC_UPDATE_EZIP_SPC,
+    /* Not enough space on SD card to extract ZIP */
+    RRC_UPDATE_EZIP_EX_SPC,
 
     /* ZIP Errors */
     /* Failed to open the downloaded update ZIP file */

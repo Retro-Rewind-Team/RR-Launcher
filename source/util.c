@@ -18,6 +18,7 @@
 */
 
 #include <gctypes.h>
+#include <sys/statvfs.h>
 
 u32 align_down(u32 num, u32 align_as)
 {
@@ -27,4 +28,16 @@ u32 align_down(u32 num, u32 align_as)
 u32 align_up(u32 num, u32 align_as)
 {
     return (num + align_as - 1) & -align_as;
+}
+
+unsigned long sd_get_free_space()
+{
+    struct statvfs sbx;
+    int rr = statvfs("/dev/sd", &sbx);
+    if (rr != 0)
+    {
+        return -1;
+    }
+
+    return (unsigned long)(sbx.f_bavail * sbx.f_frsize);
 }
