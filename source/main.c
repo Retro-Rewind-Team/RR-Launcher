@@ -39,6 +39,7 @@
 #include "settings.h"
 #include "update/versionsfile.h"
 #include "update/update.h"
+#include "prompt.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000

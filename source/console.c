@@ -68,6 +68,11 @@ void rrc_con_set_line_width_chars(int chars)
     rrc_con_line_width_chars = chars;
 }
 
+int rrc_con_get_line_width_chars()
+{
+    return rrc_con_line_width_chars;
+}
+
 void rrc_con_cursor_seek_to(int row, int column)
 {
     printf("\x1b[%i;%iH", row, column);
@@ -107,8 +112,15 @@ void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
 
 void rrc_con_print_text_centered(int row, char *text)
 {
+    rrc_con_cursor_seek_to(row, 0);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
     rrc_con_cursor_seek_to_row_centered(row, strlen(text) / 2);
     printf("%s", text);
+}
+
+int rrc_con_centered_text_start_column(char *text)
+{
+    return (rrc_con_line_width_chars / 2) - (strlen(text) / 2);
 }
 
 void rrc_con_display_splash()
