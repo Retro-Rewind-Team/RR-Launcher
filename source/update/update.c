@@ -85,7 +85,8 @@ int rrc_update_set_current_version(int version)
 
 int lp = -1;
 rrc_time_tick last_measurement_from = -1;
-curl_off_t last_second_amt_dl = 0;
+curl_off_t last_dlnow = 0;
+int last_second_dl_amount = 0;
 
 int _rrc_zipdl_progress_callback(int *numinfo,
                                  curl_off_t dltotal,
@@ -99,10 +100,13 @@ int _rrc_zipdl_progress_callback(int *numinfo,
     /* update download speed every second */
 #define _RRC_PROGRESS_UPD_SPEED_INC 1000
     int progress = (dlnow * 100) / dltotal;
+
     if (diff_msec(last_measurement_from, gettime()) > _RRC_PROGRESS_UPD_SPEED_INC || last_measurement_from < 0)
     {
         last_measurement_from = gettime();
-        last_second_amt_dl = dlnow - last_second_amt_dl;
+
+        last_second_dl_amount = dlnow - last_dlnow;
+        last_dlnow = dlnow;
     }
 
     int chunk = dlnow / _RRC_PROGRESS_UPD_CHUNKSIZE;
@@ -116,7 +120,7 @@ int _rrc_zipdl_progress_callback(int *numinfo,
             "Downloading update %i of %i - %i kB/s (%i/%i kB)",
             ((*numinfo) / 100) + 1,
             (*numinfo) % 100,
-            (int)(last_second_amt_dl / 1000),
+            (int)(last_second_dl_amount / 1000),
             (int)(dlnow / (curl_off_t)1000),
             (int)(dltotal / (curl_off_t)1000));
 
