@@ -27,6 +27,7 @@
 #include <string.h>
 #include <fat.h>
 #include <curl/curl.h>
+#include <mxml.h>
 #include <sys/statvfs.h>
 #include <errno.h>
 
@@ -100,6 +101,9 @@ int main(int argc, char **argv)
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
+    rrc_con_update("Initialise SD card", 2);
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
     rrc_con_clear(true);
     rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
@@ -147,9 +151,6 @@ interrupt_loop_end:
     lwp_t wiisocket_thread;
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
-
-    rrc_con_update("Initialise SD card", 6);
-    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
     rrc_con_update("Initialise DVD", 10);
 
