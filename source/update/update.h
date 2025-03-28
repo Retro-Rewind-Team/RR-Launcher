@@ -138,6 +138,11 @@ int rrc_update_ecode_to_string(int code);
     Returns 0 on success and a negative code on fail.
     `res' is a pointer to a valid `struct rrc_update_result' on return.
 */
-void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res);
+void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res);
+
+/*
+    Checks if updates are needed and download them. See `rrc_update_do_updates_with_state` for more details
+*/
+void rrc_update_do_updates();
 
 #endif

@@ -27,6 +27,7 @@
 #include <string.h>
 #include <fat.h>
 #include <curl/curl.h>
+#include <mxml.h>
 #include <sys/statvfs.h>
 #include <errno.h>
 
@@ -100,42 +101,8 @@ int main(int argc, char **argv)
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
-#define INTERRUPT_TIME 3000000 /* 3 seconds */
-    rrc_con_clear(true);
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
-
-    for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
-    {
-        WPAD_ScanPads();
-
-        int pressed = WPAD_ButtonsDown(0);
-        if (pressed & RRC_WPAD_HOME_MASK)
-        {
-            return 0;
-        }
-
-        if (pressed & RRC_WPAD_A_MASK)
-        {
-            break;
-        }
-
-        if (pressed & RRC_WPAD_PLUS_MASK)
-        {
-            switch (rrc_settings_display())
-            {
-            case RRC_SETTINGS_LAUNCH:
-                goto interrupt_loop_end;
-            case RRC_SETTINGS_EXIT:
-                return 0;
-            }
-        }
-
-        usleep(RRC_WPAD_LOOP_TIMEOUT);
-    }
-interrupt_loop_end:
-
-    rrc_con_clear(true);
+    rrc_con_update("Initialise SD card", 2);
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
     rrc_con_update("Spawn background threads", 5);
 
@@ -147,9 +114,6 @@ interrupt_loop_end:
     lwp_t wiisocket_thread;
     res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
-
-    rrc_con_update("Initialise SD card", 6);
-    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
     rrc_con_update("Initialise DVD", 10);
 
@@ -215,58 +179,42 @@ interrupt_loop_end:
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
-    char *versionsfile = NULL;
-    char *deleted_versionsfile = NULL;
-    int num_deleted_files = 0;
-    struct rrc_versionsfile_deleted_file *deleted_files = NULL;
-    char **zip_urls = NULL;
-    int *update_versions = NULL;
-    int count = 0;
-    res = rrc_versionsfile_get_versionsfile(&versionsfile);
-    rrc_con_update("Get Versions", 0);
-    if (res < 0)
-    {
-        RRC_FATAL("couldnt get version file! res: %i\n", res);
-    }
-    int current = rrc_update_get_current_version();
-    RRC_ASSERT(current >= 0, "failed to read current version file");
-    rrc_dbg_printf("Current version: %i\n", current);
+#define INTERRUPT_TIME 3000000 /* 3 seconds */
+    rrc_con_clear(true);
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
 
-    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, &count, &zip_urls, &update_versions);
-    if (res < 0)
+    for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
     {
-        RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
-    }
+        WPAD_ScanPads();
 
-    res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
-    if (res < 0)
-    {
-        RRC_FATAL("couldnt get files to remove! res: %i\n", res);
-    }
-
-    res = rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files);
-    if (res < 0)
-    {
-        RRC_FATAL("couldnt parse deleted files! res: %i\n", res);
-    }
-    rrc_dbg_printf("%i updates\n", count);
-    struct rrc_update_state state =
+        int pressed = WPAD_ButtonsDown(0);
+        if (pressed & RRC_WPAD_HOME_MASK)
         {
-            .current_update_num = 0,
-            .d_ptr = NULL,
-            .num_updates = count,
-            .update_urls = zip_urls,
-            .update_versions = update_versions,
-            .current_version = current,
-            .num_deleted_files = num_deleted_files,
-            .deleted_files = deleted_files};
+            return 0;
+        }
 
-    struct rrc_update_result upres;
-    rrc_update_do_updates(&state, &upres);
-    if (upres.ecode != RRC_UPDATE_EOK)
-    {
-        RRC_FATAL("Update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
+        if (pressed & RRC_WPAD_A_MASK)
+        {
+            break;
+        }
+
+        if (pressed & RRC_WPAD_PLUS_MASK)
+        {
+            switch (rrc_settings_display())
+            {
+            case RRC_SETTINGS_LAUNCH:
+                goto interrupt_loop_end;
+            case RRC_SETTINGS_EXIT:
+                return 0;
+            }
+        }
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
+interrupt_loop_end:
+
+    rrc_con_clear(true);
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
 
