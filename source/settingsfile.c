@@ -1,3 +1,41 @@
+/*
+    settingsfile.c - implementation of the settings file
+    Copyright (C) 2025  Retro Rewind Team
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+/*
+    Currently the file format is defined as follows:
+
+    | Name              | Size in bytes      |
+    |-------------------|--------------------|
+    | Format Magic      | 4                  | (always the value of `RRC_SETTINGSFILE_MAGIC`)
+    | Format Version    | 4                  |
+    | Number of Entries | 4                  |
+    | List of Entries   | Variable           |
+
+
+    Entry Format:
+    | Name            | Size in bytes (BE) |
+    |-----------------|--------------------|
+    | Key Name Length | 4                  |
+    | Key Name        | Variable           |
+    | Value Length    | 4                  |
+    | Value           | Variable           |
+*/
+
 #include <stdio.h>
 #include <gctypes.h>
 #include <string.h>
