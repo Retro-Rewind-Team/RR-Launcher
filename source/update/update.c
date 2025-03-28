@@ -359,7 +359,7 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
     zip_close(archive);
 }
 
-void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_result *res)
+void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res)
 {
     res->ecode = RRC_UPDATE_EOK;
 
@@ -452,5 +452,63 @@ void rrc_update_do_updates(struct rrc_update_state *state, struct rrc_update_res
         }
 
         state->current_update_num++;
+    }
+}
+
+void rrc_update_do_updates()
+{
+    rrc_con_clear(true);
+
+    char *versionsfile = NULL;
+    char *deleted_versionsfile = NULL;
+    int num_deleted_files = 0;
+    struct rrc_versionsfile_deleted_file *deleted_files = NULL;
+    char **zip_urls = NULL;
+    int *update_versions = NULL;
+    int count = 0;
+    int res = rrc_versionsfile_get_versionsfile(&versionsfile);
+    rrc_con_update("Get Versions", 0);
+    if (res < 0)
+    {
+        RRC_FATAL("couldnt get version file! res: %i\n", res);
+    }
+    int current = rrc_update_get_current_version();
+    RRC_ASSERT(current >= 0, "failed to read current version file");
+    rrc_dbg_printf("Current version: %i\n", current);
+
+    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, &count, &zip_urls, &update_versions);
+    if (res < 0)
+    {
+        RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
+    }
+
+    res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
+    if (res < 0)
+    {
+        RRC_FATAL("couldnt get files to remove! res: %i\n", res);
+    }
+
+    res = rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files);
+    if (res < 0)
+    {
+        RRC_FATAL("couldnt parse deleted files! res: %i\n", res);
+    }
+    rrc_dbg_printf("%i updates\n", count);
+    struct rrc_update_state state =
+        {
+            .current_update_num = 0,
+            .d_ptr = NULL,
+            .num_updates = count,
+            .update_urls = zip_urls,
+            .update_versions = update_versions,
+            .current_version = current,
+            .num_deleted_files = num_deleted_files,
+            .deleted_files = deleted_files};
+
+    struct rrc_update_result upres;
+    rrc_update_do_updates_with_state(&state, &upres);
+    if (upres.ecode != RRC_UPDATE_EOK)
+    {
+        RRC_FATAL("Update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
     }
 }

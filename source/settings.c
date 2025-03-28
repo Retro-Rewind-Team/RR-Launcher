@@ -21,6 +21,7 @@
 #include "util.h"
 #include "console.h"
 #include "settingsfile.h"
+#include "update/update.h"
 #include <stdio.h>
 #include <string.h>
 #include <gctypes.h>
@@ -45,6 +46,8 @@ struct settings_option
     u8 selected_option;
     /** The label or "name" of this setting to be displayed. */
     char *label;
+    /** Number of selectable options. Must not be 0 if this is a selectable. */
+    int option_count;
     /** An array of possible selectable option names, if this is a select option. */
     const char **options;
 };
@@ -54,6 +57,7 @@ static char *my_stuff_label = "My Stuff";
 static char *save_label = "Save changes";
 static char *language_label = "Language";
 static char *savegame_label = "Separate savegame";
+static char *perform_updates_label = "Perform updates";
 static char *exit_label = "Exit";
 
 static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, int *saved_value)
@@ -65,9 +69,8 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     RRC_ASSERT(index != NULL, "failed to create index");
 
     int count = mxmlIndexGetCount(index);
-    const char **out = malloc(sizeof(char *) * (count + 2 /* NULL + implicit 'disabled' */)); // TODO: just get rid of the null given that we have the length now anyway?
+    const char **out = malloc(sizeof(char *) * (count + 1 /* + implicit 'disabled' */));
     out[0] = "Disabled";
-    out[count + 1] = NULL;
 
     mxml_node_t *choice;
     int i = 1;
@@ -124,10 +127,18 @@ enum rrc_settings_result rrc_settings_display()
 
     struct settings_option options[] = {
         {.type = OPTION_TYPE_BUTTON, .label = launch_label},
-        {.type = OPTION_TYPE_SELECT, .label = my_stuff_label, .options = my_stuff_options, .margin_top = 1, .selected_option = stored_settings.my_stuff}, // TODO: bounds check
-        {.type = OPTION_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = stored_settings.language},
-        {.type = OPTION_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = stored_settings.savegame},
+        {
+            .type = OPTION_TYPE_SELECT,
+            .label = my_stuff_label,
+            .options = my_stuff_options,
+            .selected_option = stored_settings.my_stuff,
+            .option_count = my_stuff_options_count,
+            .margin_top = 1,
+        },
+        {.type = OPTION_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = stored_settings.language, .option_count = language_options_count},
+        {.type = OPTION_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = stored_settings.savegame, .option_count = savegame_options_count},
         {.type = OPTION_TYPE_BUTTON, .label = save_label, .margin_top = 1},
+        {.type = OPTION_TYPE_BUTTON, .label = perform_updates_label},
         {.type = OPTION_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
     };
     const int option_count = sizeof(options) / sizeof(struct settings_option);
@@ -142,9 +153,9 @@ enum rrc_settings_result rrc_settings_display()
             RRC_FATAL("'%s' is a select option but has a NULL pointer for its options array", options[i].label)
         }
 
-        if (options[i].type == OPTION_TYPE_SELECT && options[i].options[0] == NULL)
+        if (options[i].type == OPTION_TYPE_SELECT && options[i].option_count == 0)
         {
-            RRC_FATAL("'%s' is a select option but contains an empty options array", options[i].label);
+            RRC_FATAL("'%s' is a select option but has 0 options to select", options[i].label);
         }
 
         int len = strlen(options[i].label);
@@ -260,11 +271,8 @@ enum rrc_settings_result rrc_settings_display()
                 }
                 else
                 {
-                    // pressed left even though we're at the first option already
-                    // "wrap" back to the last option (the one just before the `NULL` element)
-                    // we don't store the length, so loop there
-                    while (option->options[option->selected_option + 1] != NULL)
-                        option->selected_option++;
+                    // user pressed left while already at the last option, wrap back to the end
+                    option->selected_option = option->option_count - 1;
                 }
                 break;
             }
@@ -272,11 +280,10 @@ enum rrc_settings_result rrc_settings_display()
             if ((pressed & RRC_WPAD_RIGHT_MASK) && option->type == OPTION_TYPE_SELECT)
             {
                 option->selected_option++;
-                // if we're now at a `NULL` (which every option array has at the end)
-                // it means the user pressed right while already at the last option,
-                // in which case we wrap back to the first one
-                if (option->options[option->selected_option] == NULL)
+
+                if (option->selected_option >= option->option_count)
                 {
+                    // user pressed right while already at the last option, wrap back to the first one
                     option->selected_option = 0;
                 }
                 break;
@@ -306,6 +313,10 @@ enum rrc_settings_result rrc_settings_display()
                         }
                     }
                     rrc_settingsfile_store(&stored_settings);
+                }
+                else if (option->label == perform_updates_label)
+                {
+                    rrc_update_do_updates();
                 }
                 else if (option->label == exit_label)
                 {
