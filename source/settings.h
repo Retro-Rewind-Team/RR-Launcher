@@ -26,6 +26,8 @@ enum rrc_settings_result
     RRC_SETTINGS_EXIT = 1
 };
 
-enum rrc_settings_result rrc_settings_display();
+// TODO: move xfb to some kind of global descriptor
+
+enum rrc_settings_result rrc_settings_display(void *xfb);
 
 #endif

@@ -6,14 +6,18 @@
                 "${workspaceFolder}/**",
                 "/opt/devkitpro/libogc/include",
                 "/opt/devkitpro/libogc/include/**",
-                "/opt/devkitpro/portlibs/ppc/include"
+                "/opt/devkitpro/portlibs/ppc/include",
+                "/opt/devkitpro/portlibs/wii/include",
+                "/opt/devkitpro/devkitPPC/powerpc-eabi/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++14",
             "intelliSenseMode": "linux-clang-x64",
-            "compilerArgs": ["-DPATCH_DOL_LEN=0"]
+            "compilerArgs": [
+                "-DPATCH_DOL_LEN=0"
+            ]
         }
     ],
     "version": 4

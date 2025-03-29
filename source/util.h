@@ -104,5 +104,10 @@
 
 u32 align_down(u32 num, u32 align_as);
 u32 align_up(u32 num, u32 align_as);
+/*
+    Returns amount of free space on sd card as bytes, or -1 on error.
+    Use errno to inspect errors.
+*/
+unsigned long sd_get_free_space();
 
 #endif

@@ -25,6 +25,11 @@
 #include <wiisocket.h>
 #include <ogc/wiilaunch.h>
 #include <string.h>
+#include <fat.h>
+#include <curl/curl.h>
+#include <mxml.h>
+#include <sys/statvfs.h>
+#include <errno.h>
 
 #include "util.h"
 #include "di.h"
@@ -33,6 +38,9 @@
 #include "dol.h"
 #include "console.h"
 #include "settings.h"
+#include "update/versionsfile.h"
+#include "update/update.h"
+#include "prompt.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -93,42 +101,8 @@ int main(int argc, char **argv)
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
-#define INTERRUPT_TIME 3000000 /* 3 seconds */
-    rrc_con_clear(true);
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
-
-    for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
-    {
-        WPAD_ScanPads();
-
-        int pressed = WPAD_ButtonsDown(0);
-        if (pressed & RRC_WPAD_HOME_MASK)
-        {
-            return 0;
-        }
-
-        if (pressed & RRC_WPAD_A_MASK)
-        {
-            break;
-        }
-
-        if (pressed & RRC_WPAD_PLUS_MASK)
-        {
-            switch (rrc_settings_display())
-            {
-            case RRC_SETTINGS_LAUNCH:
-                goto interrupt_loop_end;
-            case RRC_SETTINGS_EXIT:
-                return 0;
-            }
-        }
-
-        usleep(RRC_WPAD_LOOP_TIMEOUT);
-    }
-interrupt_loop_end:
-
-    rrc_con_clear(true);
+    rrc_con_update("Initialise SD card", 2);
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
     rrc_con_update("Spawn background threads", 5);
 
@@ -204,6 +178,43 @@ interrupt_loop_end:
     res = LWP_JoinThread(wiisocket_thread, NULL);
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+
+#define INTERRUPT_TIME 3000000 /* 3 seconds */
+    rrc_con_clear(true);
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
+
+    for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
+    {
+        WPAD_ScanPads();
+
+        int pressed = WPAD_ButtonsDown(0);
+        if (pressed & RRC_WPAD_HOME_MASK)
+        {
+            return 0;
+        }
+
+        if (pressed & RRC_WPAD_A_MASK)
+        {
+            break;
+        }
+
+        if (pressed & RRC_WPAD_PLUS_MASK)
+        {
+            switch (rrc_settings_display(xfb))
+            {
+            case RRC_SETTINGS_LAUNCH:
+                goto interrupt_loop_end;
+            case RRC_SETTINGS_EXIT:
+                return 0;
+            }
+        }
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
+    }
+interrupt_loop_end:
+
+    rrc_con_clear(true);
 
     rrc_con_update("Initialise DVD: Read Game DOL", 25);
 

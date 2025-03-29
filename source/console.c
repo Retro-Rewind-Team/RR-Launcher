@@ -68,6 +68,11 @@ void rrc_con_set_line_width_chars(int chars)
     rrc_con_line_width_chars = chars;
 }
 
+int rrc_con_get_line_width_chars()
+{
+    return rrc_con_line_width_chars;
+}
+
 void rrc_con_cursor_seek_to(int row, int column)
 {
     printf("\x1b[%i;%iH", row, column);
@@ -107,8 +112,15 @@ void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
 
 void rrc_con_print_text_centered(int row, char *text)
 {
+    rrc_con_cursor_seek_to(row, 0);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
     rrc_con_cursor_seek_to_row_centered(row, strlen(text) / 2);
     printf("%s", text);
+}
+
+int rrc_con_centered_text_start_column(char *text)
+{
+    return (rrc_con_line_width_chars / 2) - (strlen(text) / 2);
 }
 
 void rrc_con_display_splash()
@@ -155,11 +167,15 @@ void rrc_con_display_progress_bar()
 
     putc(']', stdout);
     rrc_con_cursor_seek_to(_RRC_PROGRESS_ROW + 1, RRC_CON_EDGE_PAD);
-    printf("%i%%", rrc_con_progress_percent);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
+    printf("%i%c", rrc_con_progress_percent, '%');
 }
 
 void rrc_con_display_action()
 {
+    // clear two lines in case an action overflowed the line
+    rrc_con_cursor_seek_to(_RRC_ACTION_ROW + 1, 0);
+    printf(RRC_CON_ANSI_CLEAR_LINE);
     rrc_con_cursor_seek_to(_RRC_ACTION_ROW, RRC_CON_EDGE_PAD);
     printf(RRC_CON_ANSI_CLEAR_LINE);
     printf("Current action: %s\n", rrc_con_current_action);
