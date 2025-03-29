@@ -16,6 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifndef RRC_PROMPT_H
+#define RRC_PROMPT_H
+
 enum rrc_prompt_result
 {
     /* Problem with input parameters, usually */
@@ -35,3 +38,5 @@ enum rrc_prompt_result
     On error, RRC_PROMPT_RESULT_ERROR is returned.
 */
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n);
+
+#endif

@@ -41,6 +41,13 @@ void _rrc_prompt_alloc_xfb()
     rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
 }
 
+void _rrc_prompt_reinit_xfb()
+{
+    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    console_init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
+}
+
 void _rrc_prompt_upd_framebuffer(void *xfb)
 {
     /*
@@ -68,6 +75,10 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
     if (prompt_xfb == NULL)
     {
         _rrc_prompt_alloc_xfb();
+    }
+    else
+    {
+        _rrc_prompt_reinit_xfb();
     }
 
     if (n >= _RRC_PROMPT_LINES_MAX)
