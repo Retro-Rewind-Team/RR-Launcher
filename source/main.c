@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 
         if (pressed & RRC_WPAD_PLUS_MASK)
         {
-            switch (rrc_settings_display())
+            switch (rrc_settings_display(xfb))
             {
             case RRC_SETTINGS_LAUNCH:
                 goto interrupt_loop_end;

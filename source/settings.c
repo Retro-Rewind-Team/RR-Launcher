@@ -22,6 +22,7 @@
 #include "console.h"
 #include "settingsfile.h"
 #include "update/update.h"
+#include "prompt.h"
 #include <stdio.h>
 #include <string.h>
 #include <gctypes.h>
@@ -101,7 +102,7 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     mxmlDelete(xml_top);    \
     fclose(xml_file);
 
-enum rrc_settings_result rrc_settings_display()
+enum rrc_settings_result rrc_settings_display(void *xfb)
 {
     FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
     if (!xml_file)
@@ -316,7 +317,14 @@ enum rrc_settings_result rrc_settings_display()
                 }
                 else if (option->label == perform_updates_label)
                 {
-                    rrc_update_do_updates();
+                    char *lines[] = {
+                        "Would you like to update now?"};
+
+                    enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 1);
+                    if (result == RRC_PROMPT_RESULT_YES)
+                    {
+                        rrc_update_do_updates();
+                    }
                 }
                 else if (option->label == exit_label)
                 {
