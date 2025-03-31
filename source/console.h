@@ -81,10 +81,6 @@ void rrc_con_set_progress_percent(int progress);
 
 void rrc_con_update(char *action, int progress_percent);
 
-void rrc_con_set_line_width_chars(int chars);
-
-int rrc_con_get_line_width_chars();
-
 void rrc_con_cursor_seek_to(int row, int column);
 
 void rrc_con_cursor_seek_to_row_centered(int row, int text_len);

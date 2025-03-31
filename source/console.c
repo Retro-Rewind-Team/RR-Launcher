@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <gctypes.h>
+#include <gccore.h>
 
 #include "console.h"
 
@@ -48,10 +49,16 @@ const char *fg_colour_cycle[] =
         RRC_CON_ANSI_FG_BRIGHT_CYAN,
         RRC_CON_ANSI_FG_BRIGHT_MAGENTA};
 
-int rrc_con_line_width_chars = 0;
 /* 100 = 100% */
 int rrc_con_progress_percent = 0;
 char *rrc_con_current_action;
+
+int _rrc_con_get_cols()
+{
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+    return cols;
+}
 
 void rrc_con_set_action(char *action)
 {
@@ -61,16 +68,6 @@ void rrc_con_set_action(char *action)
 void rrc_con_set_progress_percent(int progress)
 {
     rrc_con_progress_percent = progress;
-}
-
-void rrc_con_set_line_width_chars(int chars)
-{
-    rrc_con_line_width_chars = chars;
-}
-
-int rrc_con_get_line_width_chars()
-{
-    return rrc_con_line_width_chars;
 }
 
 void rrc_con_cursor_seek_to(int row, int column)
@@ -106,7 +103,8 @@ void _rrc_con_print_splash()
 
 void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
 {
-    int off = (rrc_con_line_width_chars / 2) - text_len;
+
+    int off = (_rrc_con_get_cols() / 2) - text_len;
     rrc_con_cursor_seek_to(row, off);
 }
 
@@ -120,7 +118,7 @@ void rrc_con_print_text_centered(int row, char *text)
 
 int rrc_con_centered_text_start_column(char *text)
 {
-    return (rrc_con_line_width_chars / 2) - (strlen(text) / 2);
+    return (_rrc_con_get_cols() / 2) - (strlen(text) / 2);
 }
 
 void rrc_con_display_splash()
@@ -134,7 +132,7 @@ void rrc_con_display_splash()
 void rrc_con_display_progress_bar()
 {
     printf(RRC_CON_ANSI_CLR);
-    int inner_width = (rrc_con_line_width_chars) - (RRC_CON_EDGE_PAD * 2);
+    int inner_width = (_rrc_con_get_cols()) - (RRC_CON_EDGE_PAD * 2);
     bool progress_bar[inner_width];
     for (int i = 0; i < inner_width; i++)
     {

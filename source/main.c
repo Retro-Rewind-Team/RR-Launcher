@@ -69,10 +69,12 @@ void video_init()
     // Allocate memory for the display in the uncached region
     xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
     // Initialise the console, required for printf
-    console_init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
-    //  SYS_STDIO_Report(true);
-    //  Set up the video registers with the chosen mode
+    CON_Init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+
+    // Uncomment following for stdio reporting for dolphin
+    // SYS_STDIO_Report(true);
+
+    // Set up the video registers with the chosen mode
     VIDEO_Configure(rmode);
     // Tell the video hardware where our display memory is
     VIDEO_SetNextFramebuffer(xfb);

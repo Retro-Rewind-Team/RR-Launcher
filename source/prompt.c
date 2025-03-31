@@ -37,15 +37,13 @@ void _rrc_prompt_alloc_xfb()
 {
     GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
     prompt_xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-    console_init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
+    CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
 void _rrc_prompt_reinit_xfb()
 {
     GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-    console_init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
+    CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
 void _rrc_prompt_upd_framebuffer(void *xfb)
@@ -59,7 +57,7 @@ void _rrc_prompt_upd_framebuffer(void *xfb)
     char *saved = malloc(fbsize);
     memcpy(saved, xfb, fbsize);
 
-    console_init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+    CON_Init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 
     memcpy(xfb, saved, fbsize);
     free(saved);
@@ -90,9 +88,12 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
 
     rrc_con_display_splash();
 
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+
     for (int i = 0; i < n; i++)
     {
-        if (strlen(lines[i]) > rrc_con_get_line_width_chars())
+        if (strlen(lines[i]) > cols)
         {
             goto err;
         }
