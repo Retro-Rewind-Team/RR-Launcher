@@ -21,6 +21,8 @@
 
 #include <curl/curl.h>
 
+#define RRC_VERSIONFILE "RetroRewind6/version.txt"
+
 /* Holds all info related to an update or sequence of updates */
 struct rrc_update_state
 {
@@ -41,6 +43,11 @@ struct rrc_update_state
     /* Files to delete. */
     struct rrc_versionsfile_deleted_file *deleted_files;
 };
+
+/*
+    Stores version string in `verstring'. `n' is the size of `verstring' to help catch buffer overruns.
+*/
+int rrc_update_get_current_version_str(char **verstring, int n);
 
 /*
     Returns an int specifying version information from version.txt.
