@@ -45,11 +45,6 @@ struct rrc_update_state
 };
 
 /*
-    Stores version string in `verstring'. `n' is the size of `verstring' to help catch buffer overruns.
-*/
-int rrc_update_get_current_version_str(char **verstring, int n);
-
-/*
     Returns an int specifying version information from version.txt.
     E.g., 4.2.0 = 420
     Returns negative status on failure.
