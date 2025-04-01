@@ -21,7 +21,9 @@
 #include <string.h>
 #include <gctypes.h>
 
+#include "update/update.h"
 #include "console.h"
+#include "util.h"
 
 const int bg_colour_cycle_len = 12;
 const char *bg_colour_cycle[] =
@@ -52,6 +54,7 @@ int rrc_con_line_width_chars = 0;
 /* 100 = 100% */
 int rrc_con_progress_percent = 0;
 char *rrc_con_current_action;
+int cached_version = -1;
 
 void rrc_con_set_action(char *action)
 {
@@ -129,6 +132,18 @@ void rrc_con_display_splash()
     int middle_off = splash_len / 2;
     rrc_con_cursor_seek_to_row_centered(_RRC_SPLASH_ROW, middle_off);
     _rrc_con_print_splash();
+
+    if (cached_version == -1)
+    {
+        cached_version = rrc_update_get_current_version();
+        if (cached_version < 0)
+        {
+            RRC_FATAL("failed to get version: ret = %i", cached_version);
+        }
+    }
+    char vertext[32];
+    snprintf(vertext, 32, "Version: %i.%i.%i", cached_version / 100, (cached_version / 10) % 10, cached_version % 10);
+    rrc_con_print_text_centered(_RRC_SPLASH_ROW + 1, vertext);
 }
 
 void rrc_con_display_progress_bar()

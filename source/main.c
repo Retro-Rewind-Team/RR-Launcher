@@ -95,14 +95,14 @@ int main(int argc, char **argv)
     // init video, setup console framebuffer
     video_init();
 
+    rrc_dbg_printf("Initialising SD card");
+    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+
     rrc_con_update("Initialise controllers", 0);
 
     rrc_dbg_printf("init controllers\n");
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
-
-    rrc_con_update("Initialise SD card", 2);
-    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
 
     rrc_con_update("Spawn background threads", 5);
 
