@@ -21,6 +21,8 @@
 
 #include <curl/curl.h>
 
+#define RRC_VERSIONFILE "RetroRewind6/version.txt"
+
 /* Holds all info related to an update or sequence of updates */
 struct rrc_update_state
 {

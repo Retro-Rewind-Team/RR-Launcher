@@ -32,18 +32,17 @@
 #include "../console.h"
 #include "../time.h"
 
-#define _RRC_VERSIONFILE "RetroRewind6/version.txt"
 #define _RRC_UPDATE_ZIP_NAME "update.zip"
 
 int rrc_update_get_current_version()
 {
-    FILE *file = fopen(_RRC_VERSIONFILE, "r");
+    FILE *file = fopen(RRC_VERSIONFILE, "r");
     if (file == NULL)
         return -5;
 
     int fd = fileno(file);
     struct stat statbuf;
-    int res = stat(_RRC_VERSIONFILE, &statbuf);
+    int res = stat(RRC_VERSIONFILE, &statbuf);
     if (res != 0)
         return -4;
 
@@ -71,7 +70,7 @@ int rrc_update_set_current_version(int version)
     char out[32];
     int written = snprintf(out, sizeof(out), "%d.%d.%d", p1, p2, version);
     RRC_ASSERT(written < sizeof(out), "version string too long");
-    FILE *file = fopen(_RRC_VERSIONFILE, "w");
+    FILE *file = fopen(RRC_VERSIONFILE, "w");
     if (file == NULL)
         return -5;
 
