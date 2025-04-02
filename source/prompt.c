@@ -26,6 +26,7 @@
 #include "console.h"
 #include "prompt.h"
 #include "util.h"
+#include "gui.h"
 
 #define _RRC_PROMPT_TEXT_FIRST_ROW 7
 #define _RRC_PROMPT_OPTIONS_PAD 1
@@ -37,37 +38,13 @@ void _rrc_prompt_alloc_xfb()
 {
     GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
     prompt_xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-    console_init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
+    CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
 void _rrc_prompt_reinit_xfb()
 {
     GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-    console_init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
-}
-
-void _rrc_prompt_upd_framebuffer(void *xfb)
-{
-    /*
-        This is a giga hack, re-init'ing the console clears xfb so we save it and restore it,
-        and then flush stdout and reset back to gray foreground.
-    */
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-    int fbsize = VIDEO_GetFrameBufferSize(rmode);
-    char *saved = malloc(fbsize);
-    memcpy(saved, xfb, fbsize);
-
-    console_init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-
-    memcpy(xfb, saved, fbsize);
-    free(saved);
-    VIDEO_SetNextFramebuffer(xfb);
-    VIDEO_Flush();
-    VIDEO_WaitVSync();
-    printf(RRC_CON_ANSI_FG_WHITE);
-    fflush(stdout);
+    CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
@@ -86,13 +63,17 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
         goto err;
     }
 
-    _rrc_prompt_upd_framebuffer(prompt_xfb);
+    rrc_gui_display_con(prompt_xfb, true);
+    rrc_gui_display_banner(prompt_xfb);
 
     rrc_con_display_splash();
 
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+
     for (int i = 0; i < n; i++)
     {
-        if (strlen(lines[i]) > rrc_con_get_line_width_chars())
+        if (strlen(lines[i]) > cols)
         {
             goto err;
         }
@@ -147,10 +128,12 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
         prev_selected_option = selected_option;
     }
 
-    _rrc_prompt_upd_framebuffer(old_xfb);
+    rrc_gui_display_con(old_xfb, false);
+    // rrc_gui_display_banner(old_xfb);
     return selected_option;
 
 err:
-    _rrc_prompt_upd_framebuffer(old_xfb);
+    rrc_gui_display_con(old_xfb, false);
+    // rrc_gui_display_banner(old_xfb);
     return RRC_PROMPT_RESULT_ERROR;
 }

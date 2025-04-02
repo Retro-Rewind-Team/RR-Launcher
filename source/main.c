@@ -41,6 +41,7 @@
 #include "update/versionsfile.h"
 #include "update/update.h"
 #include "prompt.h"
+#include "gui.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -55,48 +56,22 @@ void *wiisocket_init_thread_callback(void *res)
     return NULL;
 }
 
-static void *xfb = NULL;
-static GXRModeObj *rmode = NULL;
-
-void video_init()
-{
-    // Initialise the video system
-    VIDEO_Init();
-
-    // Obtain the preferred video mode from the system
-    // This will correspond to the settings in the Wii menu
-    rmode = VIDEO_GetPreferredMode(NULL);
-    // Allocate memory for the display in the uncached region
-    xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-    // Initialise the console, required for printf
-    console_init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    rrc_con_set_line_width_chars(rmode->fbWidth / (sizeof(char) * 8 /* bits */));
-    //  SYS_STDIO_Report(true);
-    //  Set up the video registers with the chosen mode
-    VIDEO_Configure(rmode);
-    // Tell the video hardware where our display memory is
-    VIDEO_SetNextFramebuffer(xfb);
-    // Make the display visible
-    VIDEO_SetBlack(false);
-    // Flush the video register changes to the hardware
-    VIDEO_Flush();
-    // Wait for Video setup to complete
-    VIDEO_WaitVSync();
-    if (rmode->viTVMode & VI_NON_INTERLACE)
-        VIDEO_WaitVSync();
-}
-
 int main(int argc, char **argv)
 {
     s64 systime_start = gettime();
     // response codes for various library functions
     int res;
 
+    void *xfb;
     // init video, setup console framebuffer
-    video_init();
+    rrc_gui_xfb_alloc(&xfb, false);
+    rrc_gui_display_con(xfb, true);
+    rrc_gui_display_banner(xfb);
 
     rrc_dbg_printf("Initialising SD card");
     RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+    // force filesystem root
+    chdir("../../../../..");
 
     rrc_con_update("Initialise controllers", 0);
 
@@ -181,8 +156,9 @@ int main(int argc, char **argv)
 
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
     rrc_con_clear(true);
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW, "Press A to launch, or press + to load settings.");
-    rrc_con_print_text_centered(_RRC_PRINTF_ROW + 1, "Auto-launching in 3 seconds...");
+
+    rrc_con_print_text_centered(_RRC_ACTION_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_ACTION_ROW + 1, "Auto-launching in 3 seconds...");
 
     for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
     {
