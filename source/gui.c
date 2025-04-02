@@ -29,46 +29,6 @@
 #define _RRC_GUI_CON_WIDTH_4_3 570
 #define _RRC_GUI_CON_HEIGHT_4_3 420
 
-enum _rrc_gui_aspect_ratio
-{
-    _RRC_GUI_ASP_UNKNOWN,
-    _RRC_GUI_ASP_4_3,
-    _RRC_GUI_ASP_16_9,
-};
-
-enum _rrc_gui_aspect_ratio _rrc_gui_get_aspect_ratio(GXRModeObj *rmode)
-{
-    int out = (rmode->viWidth * 100) / rmode->viHeight;
-
-    /*
-        TODO: the Wii only supports anamorphic widescreen,
-        so in order to properly support it, we need to
-        detect if it is enabled using SYSCONF.
-
-        If it is detected, extend rmode->viWidth to 720 then set
-        the configuration. From there we can load the correct banner.
-
-        This also means this function is pointless - SYSCONF will
-        effectively tell us the aspect ratio, so in future, remove
-        this and instead use SYSCONF along with viWidth to set
-        widescreen mode properly.
-
-        See https://forum.wiibrew.org/read.php?11,74268
-    */
-
-    /* 4:3 */
-    if (out == (4 * 100) / 3)
-    {
-        return _RRC_GUI_ASP_4_3;
-    }
-    else if (out == (16 * 100) / 9)
-    {
-        return _RRC_GUI_ASP_16_9;
-    }
-
-    return _RRC_GUI_ASP_UNKNOWN;
-}
-
 void rrc_gui_xfb_alloc(void **xfb, bool sys_stdio_report)
 {
     // Initialise the video system
@@ -173,22 +133,6 @@ out:
 int rrc_gui_display_banner(void *xfb)
 {
     GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-
     extern char banner4_3[];
-    extern char banner16_9[];
-
-    enum _rrc_gui_aspect_ratio asp = _rrc_gui_get_aspect_ratio(rmode);
-
-    if (asp == _RRC_GUI_ASP_16_9)
-    {
-        return _rrc_gui_draw_banner(xfb, banner16_9, rmode);
-    }
-    else if (asp == _RRC_GUI_ASP_4_3)
-    {
-        return _rrc_gui_draw_banner(xfb, banner4_3, rmode);
-    }
-    else
-    {
-        RRC_FATAL("unknown aspect ratio/resolution: %ix%i", rmode->viWidth, rmode->viHeight);
-    }
+    return _rrc_gui_draw_banner(xfb, banner4_3, rmode);
 }
