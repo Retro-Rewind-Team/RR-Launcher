@@ -23,13 +23,13 @@
 #include <stdbool.h>
 
 #define _RRC_SPLASH "RETRO REWIND"
-#define _RRC_SPLASH_ROW 3
+#define _RRC_SPLASH_ROW 1
 
-#define _RRC_PROGRESS_ROW 6
+#define _RRC_PROGRESS_ROW 4
 
-#define _RRC_ACTION_ROW 9
+#define _RRC_ACTION_ROW 7
 
-#define _RRC_PRINTF_ROW 15
+#define _RRC_PRINTF_ROW 10
 
 #define RRC_CON_ANSI_FG_BLACK "\x1b[30;0m"
 #define RRC_CON_ANSI_FG_RED "\x1b[31;0m"
@@ -65,9 +65,6 @@
 #define RRC_CON_ANSI_BG_BRIGHT_CYAN "\x1b[46;1m"
 #define RRC_CON_ANSI_BG_BRIGHT_WHITE "\x1b[47;1m"
 
-#define RRC_CON_ANSI_CLEAR_LINE "\x1b[0K"
-#define RRC_CON_ANSI_CLEAR_SCREEN "\x1b[2J"
-
 /* reset to black backgroumd, white foreground */
 #define RRC_CON_ANSI_CLR  \
     RRC_CON_ANSI_FG_WHITE \
@@ -99,6 +96,8 @@ void rrc_con_display_progress_bar();
 void rrc_con_display_action();
 
 void rrc_con_print_state();
+
+void rrc_con_clear_line(int row);
 
 void rrc_con_clear(bool keep_splash);
 

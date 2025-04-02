@@ -90,8 +90,8 @@
 #define rrc_dbg_printf(...)                                        \
     do                                                             \
     {                                                              \
+        rrc_con_clear_line(_RRC_PRINTF_ROW);                       \
         rrc_con_cursor_seek_to(_RRC_PRINTF_ROW, RRC_CON_EDGE_PAD); \
-        printf(RRC_CON_ANSI_CLEAR_LINE);                           \
         printf(__VA_ARGS__);                                       \
     } while (0);
 

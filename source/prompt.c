@@ -26,6 +26,7 @@
 #include "console.h"
 #include "prompt.h"
 #include "util.h"
+#include "gui.h"
 
 #define _RRC_PROMPT_TEXT_FIRST_ROW 7
 #define _RRC_PROMPT_OPTIONS_PAD 1
@@ -46,28 +47,6 @@ void _rrc_prompt_reinit_xfb()
     CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
-void _rrc_prompt_upd_framebuffer(void *xfb)
-{
-    /*
-        This is a giga hack, re-init'ing the console clears xfb so we save it and restore it,
-        and then flush stdout and reset back to gray foreground.
-    */
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
-    int fbsize = VIDEO_GetFrameBufferSize(rmode);
-    char *saved = malloc(fbsize);
-    memcpy(saved, xfb, fbsize);
-
-    CON_Init(xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-
-    memcpy(xfb, saved, fbsize);
-    free(saved);
-    VIDEO_SetNextFramebuffer(xfb);
-    VIDEO_Flush();
-    VIDEO_WaitVSync();
-    printf(RRC_CON_ANSI_FG_WHITE);
-    fflush(stdout);
-}
-
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
 {
     if (prompt_xfb == NULL)
@@ -84,7 +63,8 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
         goto err;
     }
 
-    _rrc_prompt_upd_framebuffer(prompt_xfb);
+    rrc_gui_display_con(prompt_xfb, true);
+    rrc_gui_display_banner(prompt_xfb);
 
     rrc_con_display_splash();
 
@@ -148,10 +128,12 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
         prev_selected_option = selected_option;
     }
 
-    _rrc_prompt_upd_framebuffer(old_xfb);
+    rrc_gui_display_con(old_xfb, false);
+    // rrc_gui_display_banner(old_xfb);
     return selected_option;
 
 err:
-    _rrc_prompt_upd_framebuffer(old_xfb);
+    rrc_gui_display_con(old_xfb, false);
+    // rrc_gui_display_banner(old_xfb);
     return RRC_PROMPT_RESULT_ERROR;
 }

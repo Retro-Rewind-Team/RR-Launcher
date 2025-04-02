@@ -168,15 +168,15 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
 
     while (1)
     {
-        int row = _RRC_SPLASH_ROW + 5;
+        int row = _RRC_SPLASH_ROW + 2;
         for (int i = 0; i < option_count; i++)
         {
             const struct settings_option *option = &options[i];
 
             // add any extra "newlines" (which means just seek)
             row += option->margin_top;
+            rrc_con_clear_line(row);
             rrc_con_cursor_seek_to(row, 0);
-            printf(RRC_CON_ANSI_CLEAR_LINE);
 
             bool is_selected = selected_idx == i;
 

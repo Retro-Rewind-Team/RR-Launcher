@@ -113,8 +113,7 @@ void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
 
 void rrc_con_print_text_centered(int row, char *text)
 {
-    rrc_con_cursor_seek_to(row, 0);
-    printf(RRC_CON_ANSI_CLEAR_LINE);
+    rrc_con_clear_line(row);
     rrc_con_cursor_seek_to_row_centered(row, strlen(text) / 2);
     printf("%s", text);
 }
@@ -139,6 +138,7 @@ void rrc_con_display_splash()
             RRC_FATAL("failed to get version: ret = %i", cached_version);
         }
     }
+
     char vertext[32];
     snprintf(vertext, 32, "Version: %i.%i.%i", cached_version / 100, (cached_version / 10) % 10, cached_version % 10);
     rrc_con_print_text_centered(_RRC_SPLASH_ROW + 1, vertext);
@@ -160,8 +160,8 @@ void rrc_con_display_progress_bar()
             progress_bar[i] = false;
     }
 
+    rrc_con_clear_line(_RRC_PROGRESS_ROW);
     rrc_con_cursor_seek_to(_RRC_PROGRESS_ROW, RRC_CON_EDGE_PAD);
-    printf(RRC_CON_ANSI_CLEAR_LINE);
     putc('[', stdout);
 
     bool now_empty = false;
@@ -179,19 +179,18 @@ void rrc_con_display_progress_bar()
     }
 
     putc(']', stdout);
+    rrc_con_clear_line(_RRC_PROGRESS_ROW + 1);
     rrc_con_cursor_seek_to(_RRC_PROGRESS_ROW + 1, RRC_CON_EDGE_PAD);
-    printf(RRC_CON_ANSI_CLEAR_LINE);
     printf("%i%c", rrc_con_progress_percent, '%');
 }
 
 void rrc_con_display_action()
 {
     // clear two lines in case an action overflowed the line
-    rrc_con_cursor_seek_to(_RRC_ACTION_ROW + 1, 0);
-    printf(RRC_CON_ANSI_CLEAR_LINE);
+    rrc_con_clear_line(_RRC_ACTION_ROW + 1);
+    rrc_con_clear_line(_RRC_ACTION_ROW);
     rrc_con_cursor_seek_to(_RRC_ACTION_ROW, RRC_CON_EDGE_PAD);
-    printf(RRC_CON_ANSI_CLEAR_LINE);
-    printf("Current action: %s\n", rrc_con_current_action);
+    printf("%s\n", rrc_con_current_action);
 }
 
 void rrc_con_print_state()
@@ -201,9 +200,30 @@ void rrc_con_print_state()
     rrc_con_display_action();
 }
 
+void rrc_con_clear_line(int row)
+{
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+
+    rrc_con_cursor_seek_to(row, 0);
+
+    for (int i = 0; i < cols; i++)
+    {
+        printf(" ");
+        fflush(stdout);
+    }
+}
+
 void rrc_con_clear(bool keep_splash)
 {
-    printf(RRC_CON_ANSI_CLEAR_SCREEN);
+    int cols, rows;
+
+    CON_GetMetrics(&cols, &rows);
+    for (int i = 0; i < rows - 1; i++)
+    {
+        rrc_con_clear_line(i);
+    }
+
     if (keep_splash)
     {
         rrc_con_display_splash();
