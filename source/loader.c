@@ -82,10 +82,12 @@ check_cover_register:
     {
     missing_mkwii_alert:
         char *lines[] = {
+            "Mario Kart Wii is not inserted!",
+            ""
             "Please insert Mario Kart Wii into the console,",
             "and select OK when done."};
 
-        enum rrc_prompt_result pres = rrc_prompt_ok_cancel(xfb, lines, 2);
+        enum rrc_prompt_result pres = rrc_prompt_ok_cancel(xfb, lines, 4);
         RRC_ASSERT(pres != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
 
         if (pres == RRC_PROMPT_RESULT_OK)
