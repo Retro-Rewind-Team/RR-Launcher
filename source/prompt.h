@@ -24,7 +24,9 @@ enum rrc_prompt_result
     /* Problem with input parameters, usually */
     RRC_PROMPT_RESULT_ERROR = -1,
     RRC_PROMPT_RESULT_YES = 0,
-    RRC_PROMPT_RESULT_NO = 1
+    RRC_PROMPT_RESULT_NO = 1,
+    RRC_PROMPT_RESULT_OK = 2,
+    RRC_PROMPT_RESULT_CANCEL = 3
 };
 
 /*
@@ -34,9 +36,17 @@ enum rrc_prompt_result
     `lines' is limited to 10 entries. Each line cannot exceed the console line width.
     `n' contains the amount of lines in `lines'.
 
-    This function returns RRC_PROMPT_RESULT_YES if `yes' is selected and RRC_PROMPT_RESULT_NO if `no' is selected.
+    This function returns RRC_PROMPT_RESULT_YES if `Yes' is selected and RRC_PROMPT_RESULT_NO if `No' is selected.
     On error, RRC_PROMPT_RESULT_ERROR is returned.
 */
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n);
+
+/*
+    See `rrc_prompt_yes_no' for a description of prompts.
+
+    This function returns RRC_PROMPT_RESULT_OK if `OK' is selected and RRC_PROMPT_RESULT_CANCEL if `Cancel' is selected.
+    On error, RRC_PROMPT_RESULT_ERROR is returned.
+*/
+enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n);
 
 #endif

@@ -28,6 +28,7 @@
 #include "util.h"
 #include "gui.h"
 
+#define _RRC_OPTIONS_W_PAD "         " /* 9 spaces between each option */
 #define _RRC_PROMPT_TEXT_FIRST_ROW 7
 #define _RRC_PROMPT_OPTIONS_PAD 1
 #define _RRC_PROMPT_LINES_MAX 10
@@ -47,7 +48,7 @@ void _rrc_prompt_reinit_xfb()
     CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
-enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
+void _rrc_prompt_xfb_setup()
 {
     if (prompt_xfb == NULL)
     {
@@ -57,10 +58,23 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
     {
         _rrc_prompt_reinit_xfb();
     }
+}
+
+enum rrc_prompt_result _rrc_prompt_2_options(
+    void *old_xfb,
+    char **lines,
+    int n,
+    char *option1,
+    char *option2,
+    enum rrc_prompt_result option1_result,
+    enum rrc_prompt_result option2_result)
+{
+    _rrc_prompt_xfb_setup();
 
     if (n >= _RRC_PROMPT_LINES_MAX)
     {
-        goto err;
+        rrc_gui_display_con(old_xfb, false);
+        return RRC_PROMPT_RESULT_ERROR;
     }
 
     rrc_gui_display_con(prompt_xfb, true);
@@ -75,20 +89,30 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
     {
         if (strlen(lines[i]) > cols)
         {
-            goto err;
+            rrc_gui_display_con(old_xfb, false);
+            return RRC_PROMPT_RESULT_ERROR;
         }
 
         rrc_con_print_text_centered(_RRC_PROMPT_TEXT_FIRST_ROW + i, lines[i]);
     }
 
+    /* initialize all buttons stuff */
     int buttons_line = _RRC_PROMPT_TEXT_FIRST_ROW + n + _RRC_PROMPT_OPTIONS_PAD;
-    char *buttons = "Yes         No";
-    char *arrow = ">> ";
+    char *arrow = RRC_CON_ANSI_FG_BRIGHT_WHITE ">> " RRC_CON_ANSI_FG_WHITE;
+    int rendered_arrow_len = 3;
+    char buttons[cols];
+    snprintf(buttons, cols, "%s%s%s", option1, _RRC_OPTIONS_W_PAD, option2);
+
+    if ((strlen(buttons) + strlen(arrow)) > cols)
+    {
+        rrc_gui_display_con(old_xfb, false);
+        return RRC_PROMPT_RESULT_ERROR;
+    }
     int buttons_col = rrc_con_centered_text_start_column(buttons);
 
     rrc_con_print_text_centered(buttons_line, buttons);
 
-    enum rrc_prompt_result selected_option = RRC_PROMPT_RESULT_NO;
+    enum rrc_prompt_result selected_option = option1_result;
     enum rrc_prompt_result prev_selected_option = -1;
 
     int dir_pressed = 0;
@@ -101,7 +125,7 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
         if (pressed & WPAD_BUTTON_LEFT || pressed & WPAD_BUTTON_RIGHT)
         {
             dir_pressed = 1;
-            selected_option = !selected_option;
+            selected_option = (selected_option == option1_result ? option2_result : option1_result);
         }
         else if (dir_pressed && !(pressed & RRC_WPAD_LEFT_MASK) && !(pressed & RRC_WPAD_RIGHT_MASK))
         {
@@ -112,16 +136,16 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
             break;
         }
 
-        if (selected_option == RRC_PROMPT_RESULT_NO && prev_selected_option != selected_option)
+        if (selected_option == option2_result && prev_selected_option != selected_option)
         {
             rrc_con_print_text_centered(buttons_line, buttons);
-            rrc_con_cursor_seek_to(buttons_line, buttons_col + strlen(buttons) - strlen(arrow) - 2);
+            rrc_con_cursor_seek_to(buttons_line, buttons_col + strlen(buttons) - rendered_arrow_len - strlen(option2));
             printf(arrow);
         }
         else if (prev_selected_option != selected_option)
         {
             rrc_con_print_text_centered(buttons_line, buttons);
-            rrc_con_cursor_seek_to(buttons_line, buttons_col - strlen(arrow));
+            rrc_con_cursor_seek_to(buttons_line, buttons_col - rendered_arrow_len);
             printf(arrow);
         }
 
@@ -129,11 +153,15 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
     }
 
     rrc_gui_display_con(old_xfb, false);
-    // rrc_gui_display_banner(old_xfb);
     return selected_option;
+}
 
-err:
-    rrc_gui_display_con(old_xfb, false);
-    // rrc_gui_display_banner(old_xfb);
-    return RRC_PROMPT_RESULT_ERROR;
+enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
+{
+    return _rrc_prompt_2_options(old_xfb, lines, n, "Yes", "No", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
+}
+
+enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n)
+{
+    return _rrc_prompt_2_options(old_xfb, lines, n, "OK", "Cancel", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
 }

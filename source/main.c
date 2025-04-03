@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
-    res = rrc_loader_await_mkw();
+    res = rrc_loader_await_mkw(xfb);
 
     /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
         If some button such as A is pressed in that window, initialise the full channel.

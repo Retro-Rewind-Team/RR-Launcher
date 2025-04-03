@@ -20,12 +20,13 @@
 #include <gccore.h>
 #include <stdio.h>
 #include <string.h>
+#include <wiiuse/wpad.h>
 
+#include "prompt.h"
 #include "patch.h"
 #include "util.h"
 #include "di.h"
 #include "loader.h"
-#include <wiiuse/wpad.h>
 #include "res.h"
 #include "console.h"
 
@@ -66,10 +67,8 @@ int rrc_loader_locate_data_part(u32 *data_part_offset)
     return 0;
 }
 
-/* 100ms */
-int rrc_loader_await_mkw()
+int rrc_loader_await_mkw(void *xfb)
 {
-#define DISKCHECK_DELAY 100000
     int res;
     unsigned int status;
     bool disc_printed = false;
@@ -82,20 +81,24 @@ check_cover_register:
     if ((status & RRC_DI_DICVR_CVR) != 0)
     {
     missing_mkwii_alert:
-        if (!disc_printed)
-        {
-            printf("Please insert Mario Kart Wii into the console.\n");
-            disc_printed = true;
-        }
+        char *lines[] = {
+            "Please insert Mario Kart Wii into the console,",
+            "and select OK when done."};
 
-        WPAD_ScanPads();
-        if (WPAD_ButtonsDown(0) & RRC_WPAD_HOME_MASK)
+        enum rrc_prompt_result pres = rrc_prompt_ok_cancel(xfb, lines, 2);
+        RRC_ASSERT(pres != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
+
+        if (pres == RRC_PROMPT_RESULT_OK)
+        {
+            goto check_cover_register;
+        }
+        else
         {
             return RRC_RES_SHUTDOWN_INTERRUPT;
         }
-        usleep(DISKCHECK_DELAY);
-        goto check_cover_register;
     }
+
+    rrc_dbg_printf("check disc");
 
     /* we need to check we actually inserted mario kart wii */
     struct rrc_di_disk_id did;
@@ -123,7 +126,6 @@ check_cover_register:
     rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
 
     return RRC_RES_OK;
-#undef DISKCHECK_DELAY
 }
 
 void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
