@@ -71,7 +71,6 @@ int rrc_loader_await_mkw(void *xfb)
 {
     int res;
     unsigned int status;
-    bool disc_printed = false;
 
 check_cover_register:
     res = rrc_di_get_low_cover_register(&status);
@@ -83,7 +82,7 @@ check_cover_register:
     missing_mkwii_alert:
         char *lines[] = {
             "Mario Kart Wii is not inserted!",
-            ""
+            "",
             "Please insert Mario Kart Wii into the console,",
             "and select OK when done."};
 
