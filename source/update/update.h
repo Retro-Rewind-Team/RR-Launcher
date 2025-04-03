@@ -21,6 +21,7 @@
 
 #include <curl/curl.h>
 
+#define RRC_UPDATE_LARGE_THRESHOLD (long)(1000 * 1000 * 100) /* 100MB */
 #define RRC_VERSIONFILE "RetroRewind6/version.txt"
 
 /* Holds all info related to an update or sequence of updates */
@@ -127,9 +128,23 @@ struct rrc_update_result
 };
 
 /*
-    Convert an error failure code to a string for display.
+    Get the total size of all update ZIPs in bytes. This can be used to determine whether
+    to warn the user that updating will take a long time based on some arbitrary threshold.
+
+    On success, returns 0 and `size' is populated with the total download size. On failure,
+    the return code is negative (usually a cURL error code), and `size' is zero.
 */
-int rrc_update_ecode_to_string(int code);
+int rrc_update_get_total_update_size(struct rrc_update_state *state, curl_off_t *size);
+
+/*
+    Determines if a update or sequence of updates is large. This is determined based on
+    if the total update download size is above some arbitrary value defined in
+    RRC_UPDATE_LARGE_THRESHOLD, in bytes.
+
+    Returns 0 if the update is not large (or there are none), 1 if it is large, and
+    a negative error status on failure.
+*/
+int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size);
 
 /*
     Does all updates specified in update_urls, in order.
@@ -145,6 +160,6 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
 /*
     Checks if updates are needed and download them. See `rrc_update_do_updates_with_state` for more details
 */
-void rrc_update_do_updates();
+void rrc_update_do_updates(void* xfb);
 
 #endif

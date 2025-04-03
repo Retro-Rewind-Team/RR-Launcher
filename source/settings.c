@@ -323,7 +323,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                     enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 1);
                     if (result == RRC_PROMPT_RESULT_YES)
                     {
-                        rrc_update_do_updates();
+                        rrc_update_do_updates(xfb);
                     }
                 }
                 else if (option->label == exit_label)
