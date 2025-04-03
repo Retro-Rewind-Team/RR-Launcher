@@ -324,6 +324,8 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                     if (result == RRC_PROMPT_RESULT_YES)
                     {
                         rrc_update_do_updates(xfb);
+                        rrc_con_clear(true);
+                        break;
                     }
                 }
                 else if (option->label == exit_label)

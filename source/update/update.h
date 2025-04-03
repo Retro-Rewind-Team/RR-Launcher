@@ -160,6 +160,6 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
 /*
     Checks if updates are needed and download them. See `rrc_update_do_updates_with_state` for more details
 */
-void rrc_update_do_updates(void* xfb);
+void rrc_update_do_updates(void *xfb);
 
 #endif

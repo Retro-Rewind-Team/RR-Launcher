@@ -363,13 +363,13 @@ int rrc_update_get_total_update_size(struct rrc_update_state *state, curl_off_t 
 {
     *size = 0;
 
-    for(int i = 0; i < state->num_updates; i++)
+    for (int i = 0; i < state->num_updates; i++)
     {
         int ret;
         curl_off_t this_size;
 
         ret = _rrc_update_get_zip_size(state->update_urls[i], &this_size);
-        if(ret != 0)
+        if (ret != 0)
         {
             *size = 0;
             return -ret;
@@ -385,7 +385,7 @@ int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size)
 {
     int ret = rrc_update_get_total_update_size(state, size);
 
-    if(ret < 0)
+    if (ret < 0)
     {
         return ret;
     }
@@ -489,7 +489,7 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
     }
 }
 
-void rrc_update_do_updates(void* xfb)
+void rrc_update_do_updates(void *xfb)
 {
     rrc_con_clear(true);
 
@@ -543,21 +543,23 @@ void rrc_update_do_updates(void* xfb)
     int is_large = rrc_update_is_large(&state, &updates_size);
     RRC_ASSERT(is_large >= 0, "failed to get update size");
 
-    if(is_large == 1)
+    if (is_large == 1)
     {
-        char info_line[128];
-        snprintf(info_line, 128, "There are %i updates available, totalling %iMB of data to download.", state.num_updates, (int)(updates_size/1000/1000));
-        char* lines[] = {
-            info_line,
+        char info_line1[128];
+        char info_line2[128];
+        snprintf(info_line1, 128, "There are %i updates available,", state.num_updates);
+        snprintf(info_line2, 128, "totalling %iMB of data to download.", (int)(updates_size / 1000 / 1000));
+        char *lines[] = {
+            info_line1,
+            info_line2,
             "This may take a long time!",
             "It may be quicker to reinstall the pack from your computer.",
             "",
-            "Would you like to continue?"
-        };
+            "Would you like to continue?"};
 
-        enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 5);
+        enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 6);
         RRC_ASSERT(result != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
-        if(result == RRC_PROMPT_RESULT_NO)
+        if (result == RRC_PROMPT_RESULT_NO)
         {
             return;
         }
