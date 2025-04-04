@@ -68,35 +68,36 @@ static void rrc_settings_file_write_header(FILE *file, u32 entry_count)
     RRC_ASSERTEQ(fwrite(&entry_count, sizeof(entry_count), 1, file), 1, "write entry count");
 }
 
-FILE *rrc_settingsfile_create()
+int rrc_settingsfile_create()
 {
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "w");
-    if (file)
+    if (!file)
     {
-        rrc_settings_file_write_header(file, 0);
-        fseek(file, 0, SEEK_SET);
+        return RRC_SETTINGS_FILE_FOPEN;
     }
-    return file;
+
+    rrc_settings_file_write_header(file, 0);
+    fclose(file);
+    return 0;
 }
 
 enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *settings)
 {
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "r");
-    if (!file)
+    if (!file && errno == ENOENT)
     {
-        if (errno == ENOENT)
-        {
-            // File doesn't exist. Create it and initialize it with defaults.
-            file = rrc_settingsfile_create();
-            if (!file)
-            {
-                return RRC_SETTINGS_FILE_FOPEN;
-            }
-        }
-        else
+        // File doesn't exist. Create it and initialize it with default values.
+        if (rrc_settingsfile_create() == RRC_SETTINGS_FILE_FOPEN)
         {
             return RRC_SETTINGS_FILE_FOPEN;
         }
+
+        file = fopen(RRC_SETTINGSFILE_PATH, "r");
+    }
+
+    if (!file)
+    {
+        return RRC_SETTINGS_FILE_FOPEN;
     }
 
     RRC_ASSERTEQ(expect_read_u32(file, "read file header"), RRC_SETTINGSFILE_MAGIC, "magic header mismatch");
