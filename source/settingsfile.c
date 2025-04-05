@@ -109,7 +109,7 @@ enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *set
     settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
     settings->language = RRC_SETTINGSFILE_DEFAULT;
     settings->savegame = RRC_SETTINGSFILE_DEFAULT;
-    settings->auto_update = RRC_SETTINGSFILE_DEFAULT;
+    settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
 
     for (int i = 0; i < entry_count; i++)
     {
