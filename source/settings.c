@@ -46,6 +46,11 @@ struct settings_entry
     u8 margin_top;
 
     /**
+     * The initial selected option after the saved settings were loaded or saved again. Used for checking whether we have unsaved changes at any point.
+     */
+    u32 initial_selected_option;
+
+    /**
      * A pointer that stores the option that is currently selected (index into `options`), iff this is a select option (otherwise NULL).
      * This is typically a pointer into a settingsfile struct field so that it automatically gets synchronized.
      */
@@ -104,6 +109,17 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     }
 }
 
+static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *entries, int entry_count)
+{
+
+    char *lines[] = {
+        "There are unsaved changes.\n",
+        "Would you like to save before exiting settings?"};
+
+    enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, sizeof(lines) / sizeof(char *));
+    return result == RRC_PROMPT_RESULT_YES;
+}
+
 #define CLEANUP             \
     free(my_stuff_options); \
     free(language_options); \
@@ -136,47 +152,64 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     // Begin initializing the settings UI.
     rrc_con_clear(true);
 
-    struct settings_entry options[] = {
+    struct settings_entry entries[] = {
         {.type = ENTRY_TYPE_BUTTON, .label = launch_label},
-        {
-            .type = ENTRY_TYPE_SELECT,
-            .label = my_stuff_label,
-            .options = my_stuff_options,
-            .selected_option = &stored_settings->my_stuff,
-            .option_count = my_stuff_options_count,
-            .margin_top = 1,
-        },
-        {.type = ENTRY_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = &stored_settings->language, .option_count = language_options_count},
-        {.type = ENTRY_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = &stored_settings->savegame, .option_count = savegame_options_count},
-        {.type = ENTRY_TYPE_SELECT, .label = autoupdate_label, .options = autoupdate_options, .selected_option = &stored_settings->auto_update, .option_count = autoupdate_option_count},
+
+        {.type = ENTRY_TYPE_SELECT,
+         .label = my_stuff_label,
+         .options = my_stuff_options,
+         .selected_option = &stored_settings->my_stuff,
+         .initial_selected_option = stored_settings->my_stuff,
+         .option_count = my_stuff_options_count,
+         .margin_top = 1},
+        {.type = ENTRY_TYPE_SELECT,
+         .label = language_label,
+         .options = language_options,
+         .selected_option = &stored_settings->language,
+         .initial_selected_option = stored_settings->language,
+         .option_count = language_options_count},
+        {.type = ENTRY_TYPE_SELECT,
+         .label = savegame_label,
+         .options = savegame_options,
+         .selected_option = &stored_settings->savegame,
+         .initial_selected_option = stored_settings->savegame,
+         .option_count = savegame_options_count},
+        {.type = ENTRY_TYPE_SELECT,
+         .label = autoupdate_label,
+         .options = autoupdate_options,
+         .selected_option = &stored_settings->auto_update,
+         .initial_selected_option = stored_settings->auto_update,
+         .option_count = autoupdate_option_count},
+
         {.type = ENTRY_TYPE_BUTTON, .label = save_label, .margin_top = 1},
         {.type = ENTRY_TYPE_BUTTON, .label = perform_updates_label},
+
         {.type = ENTRY_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
     };
-    const int option_count = sizeof(options) / sizeof(struct settings_entry);
+    const int entry_count = sizeof(entries) / sizeof(struct settings_entry);
     int selected_idx = 0;
 
     // Used for padding the label string with spaces so that all options are aligned with each other.
     u32 max_label_len = 0;
-    for (int i = 0; i < option_count; i++)
+    for (int i = 0; i < entry_count; i++)
     {
         // Do some minimal validation on select settings while we have to go through all entries to get the max label length anyway.
-        if (options[i].type == ENTRY_TYPE_SELECT && options[i].options == NULL)
+        if (entries[i].type == ENTRY_TYPE_SELECT && entries[i].options == NULL)
         {
-            RRC_FATAL("'%s' is a select option but has a NULL pointer for its options array", options[i].label)
+            RRC_FATAL("'%s' is a select option but has a NULL pointer for its options array", entries[i].label)
         }
 
-        if (options[i].type == ENTRY_TYPE_SELECT && options[i].option_count == 0)
+        if (entries[i].type == ENTRY_TYPE_SELECT && entries[i].option_count == 0)
         {
-            RRC_FATAL("'%s' is a select option but has 0 options to select", options[i].label);
+            RRC_FATAL("'%s' is a select option but has 0 options to select", entries[i].label);
         }
 
-        if (options[i].type == ENTRY_TYPE_SELECT && options[i].selected_option == NULL)
+        if (entries[i].type == ENTRY_TYPE_SELECT && entries[i].selected_option == NULL)
         {
-            RRC_FATAL("'%s' is a select option but has a NULL selected_option pointer (likely not initialized)", options[i].label);
+            RRC_FATAL("'%s' is a select option but has a NULL selected_option pointer (likely not initialized)", entries[i].label);
         }
 
-        int len = strlen(options[i].label);
+        int len = strlen(entries[i].label);
         if (len > max_label_len)
         {
             max_label_len = len;
@@ -186,9 +219,11 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     while (1)
     {
         int row = _RRC_SPLASH_ROW + 2;
-        for (int i = 0; i < option_count; i++)
+        bool has_unsaved_changes = false;
+
+        for (int i = 0; i < entry_count; i++)
         {
-            const struct settings_entry *entry = &options[i];
+            const struct settings_entry *entry = &entries[i];
 
             // add any extra "newlines" (which means just seek)
             row += entry->margin_top;
@@ -231,6 +266,12 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 {
                     printf(" <");
                 }
+
+                if (*entry->selected_option != entry->initial_selected_option)
+                {
+                    has_unsaved_changes = true;
+                    printf("%s *", RRC_CON_ANSI_FG_WHITE);
+                }
             }
 
             // end
@@ -255,7 +296,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
             if (pressed & RRC_WPAD_DOWN_MASK)
             {
-                if (selected_idx < option_count - 1)
+                if (selected_idx < entry_count - 1)
                 {
                     selected_idx++;
                 }
@@ -274,12 +315,12 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 }
                 else
                 {
-                    selected_idx = option_count - 1;
+                    selected_idx = entry_count - 1;
                 }
                 break;
             }
 
-            struct settings_entry *entry = &options[selected_idx];
+            struct settings_entry *entry = &entries[selected_idx];
 
             if ((pressed & RRC_WPAD_LEFT_MASK) && entry->type == ENTRY_TYPE_SELECT)
             {
@@ -311,11 +352,23 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
             {
                 if (entry->label == launch_label)
                 {
+                    if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
+                    {
+                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                    }
+
                     goto launch;
                 }
                 else if (entry->label == save_label)
                 {
-                    rrc_settingsfile_store(stored_settings);
+                    RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                    for (int i = 0; i < entry_count; i++)
+                    {
+                        if (entries[i].type == ENTRY_TYPE_SELECT)
+                        {
+                            entries[i].initial_selected_option = *entries[i].selected_option;
+                        }
+                    }
                 }
                 else if (entry->label == perform_updates_label)
                 {
@@ -332,6 +385,11 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 }
                 else if (entry->label == exit_label)
                 {
+                    if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
+                    {
+                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                    }
+
                     goto exit;
                 }
             }
