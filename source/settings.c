@@ -31,26 +31,34 @@
 #include <errno.h>
 #include <mxml.h>
 
-enum settings_option_type
+enum settings_entry_type
 {
-    OPTION_TYPE_SELECT,
-    OPTION_TYPE_BUTTON
+    ENTRY_TYPE_SELECT,
+    ENTRY_TYPE_BUTTON
 };
 
-struct settings_option
+struct settings_entry
 {
-    /** The type of option. */
-    enum settings_option_type type;
+    /** The type of entry. */
+    enum settings_entry_type type;
+
     /** Any additional newlines to print above (used to divide sections, i.e. having "Launch" and "Exit" separated by two lines) */
     u8 margin_top;
-    /** The option (index into `options`) that is currently selected, in case that this is a select option. */
-    u8 selected_option;
+
+    /**
+     * A pointer that stores the option that is currently selected (index into `options`), iff this is a select option (otherwise NULL).
+     * This is typically a pointer into a settingsfile struct field so that it automatically gets synchronized.
+     */
+    u32 *selected_option;
+
     /** The label or "name" of this setting to be displayed. */
     char *label;
+
+    /** An array of possible selectable option names, if this is a select option (otherwise NULL). */
+    const char **options;
+
     /** Number of selectable options. Must not be 0 if this is a selectable. */
     int option_count;
-    /** An array of possible selectable option names, if this is a select option. */
-    const char **options;
 };
 
 static char *launch_label = "Launch";
@@ -58,10 +66,11 @@ static char *my_stuff_label = "My Stuff";
 static char *save_label = "Save changes";
 static char *language_label = "Language";
 static char *savegame_label = "Separate savegame";
+static char *autoupdate_label = "Automatic updates";
 static char *perform_updates_label = "Perform updates";
 static char *exit_label = "Exit";
 
-static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, int *saved_value)
+static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
 {
     mxml_node_t *option_node = mxmlFindElement(node, top, "option", "name", name, MXML_DESCEND);
     RRC_ASSERT(option_node != NULL, "malformed RetroRewind6.xml: missing option in xml");
@@ -104,6 +113,7 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
 
 enum rrc_settings_result rrc_settings_display(void *xfb)
 {
+    // Read the XML to extract all possible options for the entries.
     FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
     if (!xml_file)
     {
@@ -111,52 +121,63 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);
 
+    // Load the saved settings from the SD card.
     struct rrc_settingsfile stored_settings;
     RRC_ASSERTEQ(rrc_settingsfile_parse(&stored_settings), RRC_SETTINGSFILE_OK, "failed to parse settings file");
-
-    rrc_con_clear(true);
 
     mxml_node_t *xml_options = mxmlFindElement(xml_top, xml_top, "options", NULL, NULL, MXML_DESCEND);
     RRC_ASSERT(xml_options != NULL, "no <options> tag in xml");
 
     const char **my_stuff_options, **language_options, **savegame_options;
     int my_stuff_options_count, language_options_count, savegame_options_count;
+    const char *autoupdate_options[] = {"Disabled", "Enabled"};
+    int autoupdate_option_count = sizeof(autoupdate_options) / sizeof(char *);
 
     xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings.my_stuff);
     xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings.language);
     xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings.savegame);
 
-    struct settings_option options[] = {
-        {.type = OPTION_TYPE_BUTTON, .label = launch_label},
+    // Begin initializing the settings UI.
+    rrc_con_clear(true);
+
+    struct settings_entry options[] = {
+        {.type = ENTRY_TYPE_BUTTON, .label = launch_label},
         {
-            .type = OPTION_TYPE_SELECT,
+            .type = ENTRY_TYPE_SELECT,
             .label = my_stuff_label,
             .options = my_stuff_options,
-            .selected_option = stored_settings.my_stuff,
+            .selected_option = &stored_settings.my_stuff,
             .option_count = my_stuff_options_count,
             .margin_top = 1,
         },
-        {.type = OPTION_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = stored_settings.language, .option_count = language_options_count},
-        {.type = OPTION_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = stored_settings.savegame, .option_count = savegame_options_count},
-        {.type = OPTION_TYPE_BUTTON, .label = save_label, .margin_top = 1},
-        {.type = OPTION_TYPE_BUTTON, .label = perform_updates_label},
-        {.type = OPTION_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
+        {.type = ENTRY_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = &stored_settings.language, .option_count = language_options_count},
+        {.type = ENTRY_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = &stored_settings.savegame, .option_count = savegame_options_count},
+        {.type = ENTRY_TYPE_SELECT, .label = autoupdate_label, .options = autoupdate_options, .selected_option = &stored_settings.auto_update, .option_count = autoupdate_option_count},
+        {.type = ENTRY_TYPE_BUTTON, .label = save_label, .margin_top = 1},
+        {.type = ENTRY_TYPE_BUTTON, .label = perform_updates_label},
+        {.type = ENTRY_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
     };
-    const int option_count = sizeof(options) / sizeof(struct settings_option);
+    const int option_count = sizeof(options) / sizeof(struct settings_entry);
     int selected_idx = 0;
 
-    // used for padding the label string with spaces so that all options are aligned with each other
+    // Used for padding the label string with spaces so that all options are aligned with each other.
     u32 max_label_len = 0;
     for (int i = 0; i < option_count; i++)
     {
-        if (options[i].type == OPTION_TYPE_SELECT && options[i].options == NULL)
+        // Do some minimal validation on select settings while we have to go through all entries to get the max label length anyway.
+        if (options[i].type == ENTRY_TYPE_SELECT && options[i].options == NULL)
         {
             RRC_FATAL("'%s' is a select option but has a NULL pointer for its options array", options[i].label)
         }
 
-        if (options[i].type == OPTION_TYPE_SELECT && options[i].option_count == 0)
+        if (options[i].type == ENTRY_TYPE_SELECT && options[i].option_count == 0)
         {
             RRC_FATAL("'%s' is a select option but has 0 options to select", options[i].label);
+        }
+
+        if (options[i].type == ENTRY_TYPE_SELECT && options[i].selected_option == NULL)
+        {
+            RRC_FATAL("'%s' is a select option but has a NULL selected_option pointer (likely not initialized)", options[i].label);
         }
 
         int len = strlen(options[i].label);
@@ -171,10 +192,10 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
         int row = _RRC_SPLASH_ROW + 2;
         for (int i = 0; i < option_count; i++)
         {
-            const struct settings_option *option = &options[i];
+            const struct settings_entry *entry = &options[i];
 
             // add any extra "newlines" (which means just seek)
-            row += option->margin_top;
+            row += entry->margin_top;
             rrc_con_clear_line(row);
             rrc_con_cursor_seek_to(row, 0);
 
@@ -190,11 +211,11 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                 printf("   ");
             }
 
-            printf("%s  ", option->label);
+            printf("%s  ", entry->label);
 
-            if (option->type == OPTION_TYPE_SELECT)
+            if (entry->type == ENTRY_TYPE_SELECT)
             {
-                int label_len = strlen(option->label);
+                int label_len = strlen(entry->label);
                 if (label_len < max_label_len)
                 {
                     for (int i = 0; i < max_label_len - label_len; i++)
@@ -208,7 +229,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                     printf("> ");
                 }
 
-                printf("%s", option->options[option->selected_option]);
+                printf("%s", entry->options[*entry->selected_option]);
 
                 if (is_selected)
                 {
@@ -262,60 +283,45 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                 break;
             }
 
-            struct settings_option *option = &options[selected_idx];
+            struct settings_entry *entry = &options[selected_idx];
 
-            if ((pressed & RRC_WPAD_LEFT_MASK) && option->type == OPTION_TYPE_SELECT)
+            if ((pressed & RRC_WPAD_LEFT_MASK) && entry->type == ENTRY_TYPE_SELECT)
             {
-                if (option->selected_option > 0)
+                if (*entry->selected_option > 0)
                 {
-                    option->selected_option--;
+                    (*entry->selected_option)--;
                 }
                 else
                 {
                     // user pressed left while already at the last option, wrap back to the end
-                    option->selected_option = option->option_count - 1;
+                    *entry->selected_option = entry->option_count - 1;
                 }
                 break;
             }
 
-            if ((pressed & RRC_WPAD_RIGHT_MASK) && option->type == OPTION_TYPE_SELECT)
+            if ((pressed & RRC_WPAD_RIGHT_MASK) && entry->type == ENTRY_TYPE_SELECT)
             {
-                option->selected_option++;
+                (*entry->selected_option)++;
 
-                if (option->selected_option >= option->option_count)
+                if (*entry->selected_option >= entry->option_count)
                 {
                     // user pressed right while already at the last option, wrap back to the first one
-                    option->selected_option = 0;
+                    *entry->selected_option = 0;
                 }
                 break;
             }
 
             if (pressed & RRC_WPAD_A_MASK)
             {
-                if (option->label == launch_label)
+                if (entry->label == launch_label)
                 {
                     goto launch;
                 }
-                else if (option->label == save_label)
+                else if (entry->label == save_label)
                 {
-                    for (int i = 0; i < sizeof(options) / sizeof(struct settings_option); i++)
-                    {
-                        if (options[i].label == my_stuff_label)
-                        {
-                            stored_settings.my_stuff = options[i].selected_option;
-                        }
-                        else if (options[i].label == language_label)
-                        {
-                            stored_settings.language = options[i].selected_option;
-                        }
-                        else if (options[i].label == savegame_label)
-                        {
-                            stored_settings.savegame = options[i].selected_option;
-                        }
-                    }
                     rrc_settingsfile_store(&stored_settings);
                 }
-                else if (option->label == perform_updates_label)
+                else if (entry->label == perform_updates_label)
                 {
                     char *lines[] = {
                         "Would you like to update now?"};
@@ -328,7 +334,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                         break;
                     }
                 }
-                else if (option->label == exit_label)
+                else if (entry->label == exit_label)
                 {
                     goto exit;
                 }
