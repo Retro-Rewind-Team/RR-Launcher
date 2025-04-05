@@ -73,6 +73,7 @@ static char *language_label = "Language";
 static char *savegame_label = "Separate savegame";
 static char *autoupdate_label = "Automatic updates";
 static char *perform_updates_label = "Perform updates";
+static char *changes_saved_status = RRC_CON_ANSI_FG_GREEN "Changes saved." RRC_CON_ANSI_CLR;
 static char *exit_label = "Exit";
 
 static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
@@ -111,7 +112,6 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
 
 static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *entries, int entry_count)
 {
-
     char *lines[] = {
         "There are unsaved changes.\n",
         "Would you like to save before exiting settings?"};
@@ -188,6 +188,8 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     };
     const int entry_count = sizeof(entries) / sizeof(struct settings_entry);
     int selected_idx = 0;
+
+    char status_message[64] = "";
 
     // Used for padding the label string with spaces so that all options are aligned with each other.
     u32 max_label_len = 0;
@@ -280,8 +282,18 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
         }
 
         row += 2;
-        rrc_con_cursor_seek_to(row, strlen(">> "));
+        rrc_con_cursor_seek_to(row++, strlen(">> "));
         printf("Use the D-Pad to navigate.");
+
+        if (has_unsaved_changes && strcmp(status_message, changes_saved_status) == 0)
+        {
+            // Reset the "changes saved" status message if we have unsaved changes.
+            status_message[0] = 0;
+        }
+
+        rrc_con_clear_line(row);
+        rrc_con_cursor_seek_to(row++, strlen(">> "));
+        printf("%s", status_message);
 
         // use an inner loop just for scanning for button presses, rather than re-printing everything all the time
         // because the current scene will remain "static" until a button is pressed
@@ -369,11 +381,23 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                             entries[i].initial_selected_option = *entries[i].selected_option;
                         }
                     }
+
+                    strncpy(status_message, changes_saved_status, sizeof(status_message));
                     break;
                 }
                 else if (entry->label == perform_updates_label)
                 {
-                    rrc_update_do_updates(xfb);
+                    int update_count;
+                    bool updated = rrc_update_do_updates(xfb, &update_count);
+                    if (update_count == 0)
+                    {
+                        strncpy(status_message, "No updates available.", sizeof(status_message));
+                    }
+                    else if (updated)
+                    {
+                        snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
+                    }
+
                     rrc_con_clear(true);
                     break;
                 }

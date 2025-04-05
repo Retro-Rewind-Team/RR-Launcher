@@ -489,7 +489,7 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
     }
 }
 
-void rrc_update_do_updates(void *xfb)
+bool rrc_update_do_updates(void *xfb, int *count)
 {
     rrc_con_clear(true);
 
@@ -499,7 +499,6 @@ void rrc_update_do_updates(void *xfb)
     struct rrc_versionsfile_deleted_file *deleted_files = NULL;
     char **zip_urls = NULL;
     int *update_versions = NULL;
-    int count = 0;
     int res = rrc_versionsfile_get_versionsfile(&versionsfile);
     rrc_con_update("Get Versions", 0);
     if (res < 0)
@@ -510,20 +509,20 @@ void rrc_update_do_updates(void *xfb)
     RRC_ASSERT(current >= 0, "failed to read current version file");
     rrc_dbg_printf("Current version: %i\n", current);
 
-    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, &count, &zip_urls, &update_versions);
+    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, count, &zip_urls, &update_versions);
     if (res < 0)
     {
         RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
     }
 
-    if (count > 0)
+    if (*count > 0)
     {
         char *lines[] = {"An update is available."};
 
         enum rrc_prompt_result result = rrc_prompt_2_options(xfb, lines, 1, "Update", "Skip", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
         if (result == RRC_PROMPT_RESULT_NO)
         {
-            return;
+            return false;
         }
     }
 
@@ -538,12 +537,12 @@ void rrc_update_do_updates(void *xfb)
     {
         RRC_FATAL("couldnt parse deleted files! res: %i\n", res);
     }
-    rrc_dbg_printf("%i updates\n", count);
+    rrc_dbg_printf("%i updates\n", *count);
     struct rrc_update_state state =
         {
             .current_update_num = 0,
             .d_ptr = NULL,
-            .num_updates = count,
+            .num_updates = *count,
             .update_urls = zip_urls,
             .update_versions = update_versions,
             .current_version = current,
@@ -572,7 +571,7 @@ void rrc_update_do_updates(void *xfb)
         RRC_ASSERT(result != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
         if (result == RRC_PROMPT_RESULT_NO)
         {
-            return;
+            return false;
         }
     }
 
@@ -582,4 +581,6 @@ void rrc_update_do_updates(void *xfb)
     {
         RRC_FATAL("Update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
     }
+
+    return true;
 }

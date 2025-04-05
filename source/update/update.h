@@ -158,8 +158,9 @@ int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size);
 void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res);
 
 /*
-    Checks if updates are needed and download them. See `rrc_update_do_updates_with_state` for more details
+    Checks if updates are needed, and if there are, prompt the user and and download them. See `rrc_update_do_updates_with_state` for more details.
+    This also writes the number of available updates into `count' and returns whether the updates were actually installed.
 */
-void rrc_update_do_updates(void *xfb);
+bool rrc_update_do_updates(void *xfb, int *count);
 
 #endif

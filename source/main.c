@@ -165,7 +165,8 @@ int main(int argc, char **argv)
     // Check for updates if the user enabled that setting.
     if (stored_settings.auto_update)
     {
-        rrc_update_do_updates(xfb);
+        int update_count;
+        rrc_update_do_updates(xfb, &update_count);
     }
 
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
