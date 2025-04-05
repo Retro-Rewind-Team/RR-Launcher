@@ -1,0 +1,36 @@
+name: Check
+on:
+  - push
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker image cache
+        uses: actions/cache@v4
+        id: toolchain-cache
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-docker-${{ hashFiles('install-libs.sh') }}
+
+      - name: Prepare docker image
+        run: |
+          docker buildx create --name builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+
+          docker buildx build . -f .github/docker/Dockerfile \
+            --builder builder \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            -t retrorewind --load
+
+      - name: Compile project
+        run: |
+          docker run --rm -i -d -v $(pwd)/:/rr -w /rr --name retrorewind-ci retrorewind bash
+          docker exec retrorewind-ci make clean
+          docker exec retrorewind-ci make
+          docker stop retrorewind-ci
