@@ -47,6 +47,7 @@
 #define RRC_SETTINGSFILE_MY_STUFF_KEY "My Stuff"
 #define RRC_SETTINGSFILE_LANGUAGE_KEY "Language"
 #define RRC_SETTINGSFILE_SAVEGAME_KEY "Separate savegame"
+#define RRC_SETTINGSFILE_AUTOUPDATE_KEY "Auto update"
 #define RRC_SETTINGSFILE_MAGIC 1920234103
 #define RRC_SETTINGSFILE_VERSION 0
 
@@ -108,6 +109,7 @@ enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *set
     settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
     settings->language = RRC_SETTINGSFILE_DEFAULT;
     settings->savegame = RRC_SETTINGSFILE_DEFAULT;
+    settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
 
     for (int i = 0; i < entry_count; i++)
     {
@@ -131,17 +133,21 @@ enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *set
         read = fread((void *)&value, sizeof(u32), 1, file);
         RRC_ASSERT(read == 1, "failed to read a u32 value");
 
-        if (strcmp(key, "My Stuff") == 0)
+        if (strcmp(key, RRC_SETTINGSFILE_MY_STUFF_KEY) == 0)
         {
             settings->my_stuff = value;
         }
-        else if (strcmp(key, "Language") == 0)
+        else if (strcmp(key, RRC_SETTINGSFILE_LANGUAGE_KEY) == 0)
         {
             settings->language = value;
         }
-        else if (strcmp(key, "Separate savegame") == 0)
+        else if (strcmp(key, RRC_SETTINGSFILE_SAVEGAME_KEY) == 0)
         {
             settings->savegame = value;
+        }
+        else if (strcmp(key, RRC_SETTINGSFILE_AUTOUPDATE_KEY) == 0)
+        {
+            settings->auto_update = value;
         }
     }
 
@@ -168,11 +174,12 @@ enum rrc_settingsfile_status rrc_settingsfile_store(struct rrc_settingsfile *set
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "w");
     RRC_ASSERT(file != NULL, "failed to open file");
 
-    rrc_settings_file_write_header(file, 3);
+    rrc_settings_file_write_header(file, 4);
 
     rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_MY_STUFF_KEY, settings->my_stuff);
     rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_LANGUAGE_KEY, settings->language);
     rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->savegame);
+    rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_AUTOUPDATE_KEY, settings->auto_update);
 
     fclose(file);
     return RRC_SETTINGSFILE_OK;

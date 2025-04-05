@@ -30,11 +30,7 @@ enum rrc_prompt_result
 };
 
 /*
-    Creates a user prompt. All `lines' are printed on the screen in order, centered,
-    and below the user is presented with either `yes' or `no' to select.
-    Each line has a newline appended, you do not need to append them yourself.
-    `lines' is limited to 10 entries. Each line cannot exceed the console line width.
-    `n' contains the amount of lines in `lines'.
+    See `rrc_prompt_2_options' for a description of prompts.
 
     This function returns RRC_PROMPT_RESULT_YES if `Yes' is selected and RRC_PROMPT_RESULT_NO if `No' is selected.
     On error, RRC_PROMPT_RESULT_ERROR is returned.
@@ -42,11 +38,32 @@ enum rrc_prompt_result
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n);
 
 /*
-    See `rrc_prompt_yes_no' for a description of prompts.
+    See `rrc_prompt_2_options' for a description of prompts.
 
     This function returns RRC_PROMPT_RESULT_OK if `OK' is selected and RRC_PROMPT_RESULT_CANCEL if `Cancel' is selected.
     On error, RRC_PROMPT_RESULT_ERROR is returned.
 */
 enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n);
+
+/**
+    Creates a user prompt. All `lines' are printed on the screen in order, centered,
+    and below the user is presented with either `yes' or `no' to select.
+    Each line has a newline appended, you do not need to append them yourself.
+    `lines' is limited to 10 entries. Each line cannot exceed the console line width.
+    `n' contains the amount of lines in `lines'.
+    `option1' and `option2' are the available buttons to display. `option1_result' and `option2_result'
+    are the values that the buttons map to.
+
+    This function returns option1_result or option2_result depending on which option is selected.
+    On error, RRC_PROMPT_RESULT_ERROR is returned.
+ */
+enum rrc_prompt_result rrc_prompt_2_options(
+    void *old_xfb,
+    char **lines,
+    int n,
+    char *option1,
+    char *option2,
+    enum rrc_prompt_result option1_result,
+    enum rrc_prompt_result option2_result);
 
 #endif
