@@ -111,7 +111,7 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     mxmlDelete(xml_top);    \
     fclose(xml_file);
 
-enum rrc_settings_result rrc_settings_display(void *xfb)
+enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings)
 {
     // Read the XML to extract all possible options for the entries.
     FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
@@ -121,10 +121,6 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);
 
-    // Load the saved settings from the SD card.
-    struct rrc_settingsfile stored_settings;
-    RRC_ASSERTEQ(rrc_settingsfile_parse(&stored_settings), RRC_SETTINGSFILE_OK, "failed to parse settings file");
-
     mxml_node_t *xml_options = mxmlFindElement(xml_top, xml_top, "options", NULL, NULL, MXML_DESCEND);
     RRC_ASSERT(xml_options != NULL, "no <options> tag in xml");
 
@@ -133,9 +129,9 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
     const char *autoupdate_options[] = {"Disabled", "Enabled"};
     int autoupdate_option_count = sizeof(autoupdate_options) / sizeof(char *);
 
-    xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings.my_stuff);
-    xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings.language);
-    xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings.savegame);
+    xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
+    xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
+    xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
 
     // Begin initializing the settings UI.
     rrc_con_clear(true);
@@ -146,13 +142,13 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
             .type = ENTRY_TYPE_SELECT,
             .label = my_stuff_label,
             .options = my_stuff_options,
-            .selected_option = &stored_settings.my_stuff,
+            .selected_option = &stored_settings->my_stuff,
             .option_count = my_stuff_options_count,
             .margin_top = 1,
         },
-        {.type = ENTRY_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = &stored_settings.language, .option_count = language_options_count},
-        {.type = ENTRY_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = &stored_settings.savegame, .option_count = savegame_options_count},
-        {.type = ENTRY_TYPE_SELECT, .label = autoupdate_label, .options = autoupdate_options, .selected_option = &stored_settings.auto_update, .option_count = autoupdate_option_count},
+        {.type = ENTRY_TYPE_SELECT, .label = language_label, .options = language_options, .selected_option = &stored_settings->language, .option_count = language_options_count},
+        {.type = ENTRY_TYPE_SELECT, .label = savegame_label, .options = savegame_options, .selected_option = &stored_settings->savegame, .option_count = savegame_options_count},
+        {.type = ENTRY_TYPE_SELECT, .label = autoupdate_label, .options = autoupdate_options, .selected_option = &stored_settings->auto_update, .option_count = autoupdate_option_count},
         {.type = ENTRY_TYPE_BUTTON, .label = save_label, .margin_top = 1},
         {.type = ENTRY_TYPE_BUTTON, .label = perform_updates_label},
         {.type = ENTRY_TYPE_BUTTON, .label = exit_label, .margin_top = 1},
@@ -319,7 +315,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb)
                 }
                 else if (entry->label == save_label)
                 {
-                    rrc_settingsfile_store(&stored_settings);
+                    rrc_settingsfile_store(stored_settings);
                 }
                 else if (entry->label == perform_updates_label)
                 {

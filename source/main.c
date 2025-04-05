@@ -43,6 +43,7 @@
 #include "prompt.h"
 #include "gui.h"
 #include "res.h"
+#include "settingsfile.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -158,6 +159,15 @@ int main(int argc, char **argv)
     RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
+    struct rrc_settingsfile stored_settings;
+    RRC_ASSERTEQ(rrc_settingsfile_parse(&stored_settings), RRC_SETTINGSFILE_OK, "failed to parse settingsfile");
+
+    // Check for updates if the user enabled that setting.
+    if (stored_settings.auto_update)
+    {
+        rrc_update_do_updates(xfb);
+    }
+
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
     rrc_con_clear(true);
 
@@ -181,7 +191,7 @@ int main(int argc, char **argv)
 
         if (pressed & RRC_WPAD_PLUS_MASK)
         {
-            switch (rrc_settings_display(xfb))
+            switch (rrc_settings_display(xfb, &stored_settings))
             {
             case RRC_SETTINGS_LAUNCH:
                 goto interrupt_loop_end;
