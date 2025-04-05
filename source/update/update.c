@@ -516,6 +516,17 @@ void rrc_update_do_updates(void *xfb)
         RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
     }
 
+    if (count > 0)
+    {
+        char *lines[] = {"An update is available."};
+
+        enum rrc_prompt_result result = rrc_prompt_2_options(xfb, lines, 1, "Update", "Skip", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
+        if (result == RRC_PROMPT_RESULT_NO)
+        {
+            return;
+        }
+    }
+
     res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
     if (res < 0)
     {

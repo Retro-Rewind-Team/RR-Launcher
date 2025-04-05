@@ -60,7 +60,7 @@ void _rrc_prompt_xfb_setup()
     }
 }
 
-enum rrc_prompt_result _rrc_prompt_2_options(
+enum rrc_prompt_result rrc_prompt_2_options(
     void *old_xfb,
     char **lines,
     int n,
@@ -158,10 +158,10 @@ enum rrc_prompt_result _rrc_prompt_2_options(
 
 enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
 {
-    return _rrc_prompt_2_options(old_xfb, lines, n, "Yes", "No", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
+    return rrc_prompt_2_options(old_xfb, lines, n, "Yes", "No", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
 }
 
 enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n)
 {
-    return _rrc_prompt_2_options(old_xfb, lines, n, "OK", "Cancel", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
+    return rrc_prompt_2_options(old_xfb, lines, n, "OK", "Cancel", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
 }

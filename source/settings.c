@@ -373,16 +373,9 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 }
                 else if (entry->label == perform_updates_label)
                 {
-                    char *lines[] = {
-                        "Would you like to update now?"};
-
-                    enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 1);
-                    if (result == RRC_PROMPT_RESULT_YES)
-                    {
-                        rrc_update_do_updates(xfb);
-                        rrc_con_clear(true);
-                        break;
-                    }
+                    rrc_update_do_updates(xfb);
+                    rrc_con_clear(true);
+                    break;
                 }
                 else if (entry->label == exit_label)
                 {
