@@ -31,6 +31,7 @@
 #include "../util.h"
 #include "../console.h"
 #include "../time.h"
+#include "../prompt.h"
 
 #define _RRC_UPDATE_ZIP_NAME "update.zip"
 
@@ -358,6 +359,40 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
     zip_close(archive);
 }
 
+int rrc_update_get_total_update_size(struct rrc_update_state *state, curl_off_t *size)
+{
+    *size = 0;
+
+    for (int i = 0; i < state->num_updates; i++)
+    {
+        int ret;
+        curl_off_t this_size;
+
+        ret = _rrc_update_get_zip_size(state->update_urls[i], &this_size);
+        if (ret != 0)
+        {
+            *size = 0;
+            return -ret;
+        }
+
+        *size += this_size;
+    }
+
+    return 0;
+}
+
+int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size)
+{
+    int ret = rrc_update_get_total_update_size(state, size);
+
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    return (*size > RRC_UPDATE_LARGE_THRESHOLD);
+}
+
 void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res)
 {
     res->ecode = RRC_UPDATE_EOK;
@@ -454,7 +489,7 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
     }
 }
 
-void rrc_update_do_updates()
+void rrc_update_do_updates(void *xfb)
 {
     rrc_con_clear(true);
 
@@ -503,6 +538,32 @@ void rrc_update_do_updates()
             .current_version = current,
             .num_deleted_files = num_deleted_files,
             .deleted_files = deleted_files};
+
+    curl_off_t updates_size;
+    int is_large = rrc_update_is_large(&state, &updates_size);
+    RRC_ASSERT(is_large >= 0, "failed to get update size");
+
+    if (is_large == 1)
+    {
+        char info_line1[128];
+        char info_line2[128];
+        snprintf(info_line1, 128, "There are %i updates available,", state.num_updates);
+        snprintf(info_line2, 128, "totalling %iMB of data to download.", (int)(updates_size / 1000 / 1000));
+        char *lines[] = {
+            info_line1,
+            info_line2,
+            "This may take a long time!",
+            "It may be quicker to reinstall the pack from your computer.",
+            "",
+            "Would you like to continue?"};
+
+        enum rrc_prompt_result result = rrc_prompt_yes_no(xfb, lines, 6);
+        RRC_ASSERT(result != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
+        if (result == RRC_PROMPT_RESULT_NO)
+        {
+            return;
+        }
+    }
 
     struct rrc_update_result upres;
     rrc_update_do_updates_with_state(&state, &upres);
