@@ -42,6 +42,7 @@
 #include "update/update.h"
 #include "prompt.h"
 #include "gui.h"
+#include "res.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -52,7 +53,6 @@ void *wiisocket_init_thread_callback(void *res)
     // because we want to assert everything from the main thread rather than asserting in here
     // so that we don't potentially exit(1) from another thread while the main thread is doing some important reading/patching.
     *(int *)res = wiisocket_init();
-    rrc_dbg_printf("network initialised with status %d\n", *(int *)res);
     return NULL;
 }
 
@@ -98,7 +98,11 @@ int main(int argc, char **argv)
 
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
-    res = rrc_loader_await_mkw();
+    res = rrc_loader_await_mkw(xfb);
+    if (res == RRC_RES_SHUTDOWN_INTERRUPT)
+    {
+        exit(0);
+    }
 
     /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
         If some button such as A is pressed in that window, initialise the full channel.

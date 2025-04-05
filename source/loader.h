@@ -26,9 +26,9 @@
 /*
  * Spins until Mario Kart Wii is inserted into the disc drive.
  *
- * Returns normal RRC exit codes.
+ * Returns normal RRC status codes.
  */
-int rrc_loader_await_mkw();
+int rrc_loader_await_mkw(void *xfb);
 
 /*
  * Locate the data partition and return it. On failure, `part' is set to NULL.
