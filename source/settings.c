@@ -369,6 +369,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                             entries[i].initial_selected_option = *entries[i].selected_option;
                         }
                     }
+                    break;
                 }
                 else if (entry->label == perform_updates_label)
                 {
