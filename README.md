@@ -24,8 +24,7 @@ In order to build this project, you need:
 - [DevkitPro](https://devkitpro.org/wiki/Getting_Started), specifically all packages in the `wii-dev` and `ppc-dev` groups.
 - Additional libraries: libcurl (the `install-libs.sh` script can install them for you)
 
-This project uses a `Makefile` for building the project: running `make` in the root directory will build the project and produce a `RR-Launcher.dol` file,
-which is the compiled channel that can then be run.
+This project uses a `Makefile` for building the project: running `make` in the root directory will build the project and produce a `RR-Launcher.dol` file.
 
 ### License
 
