@@ -165,3 +165,60 @@ enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n)
 {
     return rrc_prompt_2_options(old_xfb, lines, n, "OK", "Cancel", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
 }
+
+void rrc_prompt_1_option(void *old_xfb,
+                         char **lines,
+                         int n,
+                         char *button)
+{
+    _rrc_prompt_xfb_setup();
+
+    if (n >= _RRC_PROMPT_LINES_MAX)
+    {
+        rrc_gui_display_con(old_xfb, false);
+        return;
+    }
+
+    rrc_gui_display_con(prompt_xfb, true);
+    rrc_gui_display_banner(prompt_xfb);
+
+    rrc_con_display_splash();
+
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+
+    for (int i = 0; i < n; i++)
+    {
+        if (strlen(lines[i]) > cols)
+        {
+            rrc_gui_display_con(old_xfb, false);
+            return;
+        }
+
+        rrc_con_print_text_centered(_RRC_PROMPT_TEXT_FIRST_ROW + i, lines[i]);
+    }
+
+    char *arrow = RRC_CON_ANSI_FG_BRIGHT_WHITE ">> " RRC_CON_ANSI_FG_WHITE;
+    int rendered_arrow_len = 3;
+
+    int buttons_line = _RRC_PROMPT_TEXT_FIRST_ROW + n + _RRC_PROMPT_OPTIONS_PAD;
+    int buttons_col = rrc_con_centered_text_start_column(button);
+
+    rrc_con_print_text_centered(buttons_line, button);
+    rrc_con_cursor_seek_to(buttons_line, buttons_col - rendered_arrow_len);
+    printf(arrow);
+
+    // just wait for an A press lol
+    while (1)
+    {
+        WPAD_ScanPads();
+        int pressed = WPAD_ButtonsDown(0);
+        if (pressed & RRC_WPAD_A_MASK)
+        {
+            break;
+        }
+    }
+
+    rrc_gui_display_con(old_xfb, false);
+    return;
+}

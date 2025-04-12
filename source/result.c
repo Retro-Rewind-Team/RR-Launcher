@@ -19,7 +19,9 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <gccore.h>
 
+#include "prompt.h"
 #include "result.h"
 
 #include "console.h"
@@ -92,8 +94,25 @@ char *rrc_result_strerror(struct rrc_result *result)
     }
 }
 
-void rrc_result_error_check_error_normal(struct rrc_result *result)
+void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb)
 {
+    if (!rrc_result_is_error(result))
+    {
+        return;
+    }
+
+    int rows, cols;
+    CON_GetMetrics(&cols, &rows);
+    char line1[cols];
+    snprintf(line1, cols, "Error: %s", rrc_result_strerror(result));
+
+    char *lines[] = {
+        line1,
+        "Additional info:",
+        (char *)result->context,
+    };
+
+    rrc_prompt_1_option(xfb, lines, 3, "OK");
 }
 
 void rrc_result_error_check_error_fatal(struct rrc_result *result)

@@ -114,8 +114,10 @@ char *rrc_result_strerror(struct rrc_result *result);
    It is down to the particular implementation at which this error happens to decide
    how exactly to handle the error condition. It is likely that this is propagated
    back to the call site of thie work (such as the settings page) and no other
-   action is taken. */
-void rrc_result_error_check_error_normal(struct rrc_result *result);
+   action is taken.
+
+   The xfb parameter is required for prompt display. */
+void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb);
 
 /* Check this result for error condition, and if it is in an erroneous state, display
    an error message, wait a set period of time, and exit.
