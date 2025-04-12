@@ -98,13 +98,6 @@ int main(int argc, char **argv)
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
-    struct rrc_result rrr = rrc_result_create_error_errno(ENOENT, "test 123");
-    rrc_result_error_check_error_normal(&rrr, xfb);
-
-    while (1)
-    {
-    }
-
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
     res = rrc_loader_await_mkw(xfb);
