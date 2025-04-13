@@ -366,14 +366,17 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 {
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
-                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                        struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                        rrc_result_error_check_error_normal(&res, xfb);
                     }
 
                     goto launch;
                 }
                 else if (entry->label == save_label)
                 {
-                    RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                    struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                    rrc_result_error_check_error_normal(&res, xfb);
+
                     for (int i = 0; i < entry_count; i++)
                     {
                         if (entries[i].type == ENTRY_TYPE_SELECT)
@@ -405,7 +408,8 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 {
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
-                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                        struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                        rrc_result_error_check_error_normal(&res, xfb);
                     }
 
                     goto exit;

@@ -34,7 +34,11 @@ enum rrc_result_error_source
     ESOURCE_NONE = -1,
     ESOURCE_CURL,
     ESOURCE_ERRNO,
-    ESOURCE_ZIP
+    ESOURCE_ZIP,
+    /* Corruption detected in settingsfile during parsing.
+       This should ideally never happen unless the user manually edited it and the detection is only a best-effort,
+       but if we do detect it we can ask the user if they want to reset the file to its defaults. */
+    ESOURCE_CORRUPTED_SETTINGSFILE
 };
 
 /* Because each library uses their own set of error codes, we need to support all
@@ -48,6 +52,14 @@ union rrc_result_error_inner
     /* defined for ZIP errors */
     int ziperr;
 };
+
+#define TRY(x)                         \
+    do                                 \
+    {                                  \
+        struct rrc_result res = x;     \
+        if (rrc_result_is_error(&res)) \
+            return res;                \
+    } while (0);
 
 /* Primary result struct. Denotes either success or failure of a routine.
    Success is considered a no-op in most cases, and errors are handled in different
@@ -92,13 +104,15 @@ struct rrc_result
     const char *context;
 };
 
-struct rrc_result rrc_result_create_success();
+extern const struct rrc_result rrc_result_success;
 
 struct rrc_result rrc_result_create_error_curl(CURLcode error, const char *context);
 
 struct rrc_result rrc_result_create_error_errno(int eno, const char *context);
 
 struct rrc_result rrc_result_create_error_zip(int error, const char *context);
+
+struct rrc_result rrc_result_create_error_corrupted_settingsfile(const char *context);
 
 /* Returns true if this result is an error, false otherwise. */
 bool rrc_result_is_error(struct rrc_result *result);

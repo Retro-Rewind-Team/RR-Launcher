@@ -161,7 +161,35 @@ int main(int argc, char **argv)
     RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
 
     struct rrc_settingsfile stored_settings;
-    RRC_ASSERTEQ(rrc_settingsfile_parse(&stored_settings), RRC_SETTINGSFILE_OK, "failed to parse settingsfile");
+    struct rrc_result settingsfile_res = rrc_settingsfile_parse(&stored_settings);
+    if (rrc_result_is_error(&settingsfile_res))
+    {
+        char *lines[] = {
+            rrc_result_strerror(&settingsfile_res),
+            (char *)settingsfile_res.context,
+            "It may be possible to fix this by recreating the file.",
+            "Recreate now?",
+        };
+        enum rrc_prompt_result prompt_res = rrc_prompt_yes_no(xfb, lines, 4);
+
+        if (prompt_res == RRC_PROMPT_RESULT_YES)
+        {
+            settingsfile_res = rrc_settingsfile_create();
+            if (rrc_result_is_error(&settingsfile_res))
+            {
+                char *lines[] = {
+                    "Failed to recreate settings file.",
+                    rrc_result_strerror(&settingsfile_res),
+                    (char *)settingsfile_res.context,
+                    "Defaults will be used with no changes on the SD card.",
+                };
+                rrc_prompt_1_option(xfb, lines, 4, "OK");
+            }
+        }
+
+        // `rrc_settingsfile_parse()` always initializes the settingsfile, so even in case of an error here,
+        // it is initialized with defaults and we can continue with that.
+    }
 
     // Check for updates if the user enabled that setting.
     if (stored_settings.auto_update)
