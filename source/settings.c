@@ -391,17 +391,27 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 else if (entry->label == perform_updates_label)
                 {
                     int update_count;
-                    bool updated = rrc_update_do_updates(xfb, &update_count);
-                    if (update_count == 0)
+                    bool updated;
+                    struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &updated);
+
+                    if (rrc_result_is_error(&update_res))
                     {
-                        strncpy(status_message, "No updates available.", sizeof(status_message));
+                        rrc_result_error_check_error_normal(&update_res, xfb);
                     }
-                    else if (updated)
+                    else
                     {
-                        snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
+                        if (update_count == 0)
+                        {
+                            strncpy(status_message, "No updates available.", sizeof(status_message));
+                        }
+                        else if (updated)
+                        {
+                            snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
+                        }
+
+                        rrc_con_clear(true);
                     }
 
-                    rrc_con_clear(true);
                     break;
                 }
                 else if (entry->label == exit_label)

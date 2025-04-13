@@ -20,6 +20,7 @@
 #define RRC_UPDATE_H
 
 #include <curl/curl.h>
+#include "../result.h"
 
 #define RRC_UPDATE_LARGE_THRESHOLD (long)(1000 * 1000 * 100) /* 100MB */
 #define RRC_VERSIONFILE "RetroRewind6/version.txt"
@@ -48,33 +49,21 @@ struct rrc_update_state
 /*
     Returns an int specifying version information from version.txt.
     E.g., 4.2.0 = 420
-    Returns negative status on failure.
     SD driver must be loaded for this to work.
 */
-int rrc_update_get_current_version();
+struct rrc_result rrc_update_get_current_version(int *version);
 
 /*
     Writes the specified version int into version.txt.
-    Returns negative status on failure.
     SD driver must be loaded for this to work.
 */
-int rrc_update_set_current_version(int version);
+struct rrc_result rrc_update_set_current_version(int version);
 
 /*
     Downloads a Retro Rewind ZIP. Uses the console to display progress.
     Stores on SD in the file given by `filename'.
-
-    Returns 0 on success, negative CURLcode status on error.
 */
-int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
-
-/*
-    Check for updates. If there are updates, the return code is 0 and `ret' is populated with
-    URL information and amount of updates.
-    If there are no updates, `ret' will be NULL and the return code will be 0.
-    On failure, `ret' will be NULL and the return code will be negative.
-*/
-int rrc_update_check_for_updates(struct rrc_update_state *ret);
+struct rrc_result rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
 
 enum rrc_update_ecode
 {
@@ -155,12 +144,12 @@ int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size);
     Returns 0 on success and a negative code on fail.
     `res' is a pointer to a valid `struct rrc_update_result' on return.
 */
-void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res);
+struct rrc_result rrc_update_do_updates_with_state(struct rrc_update_state *state);
 
 /*
     Checks if updates are needed, and if there are, prompt the user and and download them. See `rrc_update_do_updates_with_state` for more details.
     This also writes the number of available updates into `count' and returns whether the updates were actually installed.
 */
-bool rrc_update_do_updates(void *xfb, int *count);
+struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *any_updates_installed);
 
 #endif

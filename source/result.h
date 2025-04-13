@@ -38,7 +38,9 @@ enum rrc_result_error_source
     /* Corruption detected in settingsfile during parsing.
        This should ideally never happen unless the user manually edited it and the detection is only a best-effort,
        but if we do detect it we can ask the user if they want to reset the file to its defaults. */
-    ESOURCE_CORRUPTED_SETTINGSFILE
+    ESOURCE_CORRUPTED_SETTINGSFILE,
+    ESOURCE_UPDATE_MISC,
+    ESOURCE_CORRUPTED_VERSIONFILE
 };
 
 /* Because each library uses their own set of error codes, we need to support all
@@ -113,6 +115,10 @@ struct rrc_result rrc_result_create_error_errno(int eno, const char *context);
 struct rrc_result rrc_result_create_error_zip(int error, const char *context);
 
 struct rrc_result rrc_result_create_error_corrupted_settingsfile(const char *context);
+
+struct rrc_result rrc_result_create_error_corrupted_versionfile(const char *context);
+
+struct rrc_result rrc_result_create_error_misc_update(const char *context);
 
 /* Returns true if this result is an error, false otherwise. */
 bool rrc_result_is_error(struct rrc_result *result);

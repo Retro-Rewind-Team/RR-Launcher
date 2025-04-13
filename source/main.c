@@ -195,7 +195,9 @@ int main(int argc, char **argv)
     if (stored_settings.auto_update)
     {
         int update_count;
-        rrc_update_do_updates(xfb, &update_count);
+        bool any_updates;
+        struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &any_updates);
+        rrc_result_error_check_error_normal(&update_res, xfb);
     }
 
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
