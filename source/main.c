@@ -44,6 +44,7 @@
 #include "gui.h"
 #include "res.h"
 #include "settingsfile.h"
+#include "result.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
