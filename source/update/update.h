@@ -65,57 +65,6 @@ struct rrc_result rrc_update_set_current_version(int version);
 */
 struct rrc_result rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
 
-enum rrc_update_ecode
-{
-    /* Success */
-    RRC_UPDATE_EOK = 0,
-
-    /* CURL error. `ccode' is set to that error if this is set. */
-    RRC_UPDATE_ECURL,
-
-    /* IO Errors */
-    /* Could not open file */
-    RRC_UPDATE_INVFILE,
-    /* Failed to create directories for file */
-    RRC_UPDATE_EMKDIR,
-    /* Failed to open/create output file for the extracted file. */
-    RRC_UPDATE_EOPEN_OUTFILE,
-    /* Failed to open or stat file in zip archive. */
-    RRC_UPDATE_EOPEN_AR_FILE,
-    /* Failed to read archive file contents. */
-    RRC_UPDATE_EREAD_AR,
-    /* Failed to write archive contents into output file on SD card. */
-    RRC_UPDATE_EWRITE_OUT,
-    /* Failed to write version.txt file. */
-    RRC_UPDATE_EWRITE_VERSION,
-    /* Failed to get free space on SD card */
-    RRC_UPDATE_ESD_SZ,
-    /* Not enough space on SD card to download ZIP */
-    RRC_UPDATE_EZIP_SPC,
-    /* Not enough space on SD card to extract ZIP */
-    RRC_UPDATE_EZIP_EX_SPC,
-
-    /* ZIP Errors */
-    /* Failed to open the downloaded update ZIP file */
-    RRC_UPDATE_EOPEN_ZIP
-};
-
-typedef union
-{
-    /* defined if ecode == ECURL */
-    CURLcode ccode;
-    /* defined for IO errors except INVFILE */
-    int errnocode;
-    /* defined for ZIP errors */
-    int ziperr;
-} rrc_update_result_inner;
-
-struct rrc_update_result
-{
-    enum rrc_update_ecode ecode;
-    rrc_update_result_inner inner;
-};
-
 /*
     Get the total size of all update ZIPs in bytes. This can be used to determine whether
     to warn the user that updating will take a long time based on some arbitrary threshold.
