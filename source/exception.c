@@ -53,7 +53,7 @@ void init_exception_handlers()
 
     for (u32 i = 0; i < sizeof(offsets) / sizeof(u32); i++)
     {
-        u32 *instr = (u32 *)(EXCEPTION_HANDLER_BASE_ADDR + offsets[i]);
+        u32 *instr = (u32 *)(0x80000000 + offsets[i]);
 
         /* set up and branch to exception catch asm */
         /* stmw 0,0x3500(0) (copy contents of all GPRs to EXCEPTION_ASM_REGS_ADDR) -
@@ -64,12 +64,11 @@ void init_exception_handlers()
         instr[3] = 0;
     }
 
-    ICInvalidateRange((void *)EXCEPTION_HANDLER_BASE_ADDR, EXCEPTION_HANDLERS_LEN);
-
     u32 asm_len = &exception_catch_end - &exception_catch_start;
+    void *ecs = &exception_catch_start;
     /* place exception handler asm early in instruction memory */
-    memcpy((void *)EXCEPTION_ASM_ADDR, &exception_catch_start, asm_len);
-    ICInvalidateRange((void *)EXCEPTION_ASM_ADDR, asm_len);
+    memcpy((void *)0x80003600, &ecs, asm_len);
+    ICInvalidateRange((void *)0x80003600, asm_len);
 }
 
 void deinit_exception_handlers()
@@ -78,8 +77,8 @@ void deinit_exception_handlers()
 
     for (u32 i = 0; i < sizeof(offsets) / sizeof(u32); i++)
     {
-        *(u32 *)(EXCEPTION_HANDLER_BASE_ADDR + offsets[i]) = EXCEPTION_HANDLER_DEINIT_INSTR;
+        *(u32 *)(0x80000000 + offsets[i]) = EXCEPTION_HANDLER_DEINIT_INSTR;
     }
 
-    ICInvalidateRange((u32 *)EXCEPTION_HANDLER_BASE_ADDR, EXCEPTION_HANDLERS_LEN);
+    ICInvalidateRange((u32 *)0x80000000, EXCEPTION_HANDLERS_LEN);
 }

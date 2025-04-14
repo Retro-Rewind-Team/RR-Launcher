@@ -46,12 +46,8 @@
 /* the instruction to use when de-initing (b 0x0) */
 #define EXCEPTION_HANDLER_DEINIT_INSTR 0x48000000
 
-/* offsets are added to this */
-#define EXCEPTION_HANDLER_BASE_ADDR (u32)0x800000000
-
 #define EXCEPTION_HANDLERS_LEN 0x1f00
 
-#define EXCEPTION_ASM_ADDR 0x800003600
 #define EXCEPTION_ASM_REGS_ADDR 0x80003500
 
 void init_exception_handlers();

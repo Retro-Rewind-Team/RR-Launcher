@@ -65,13 +65,15 @@ int main(int argc, char **argv)
     // response codes for various library functions
     int res;
 
-    init_exception_handlers();
-
     void *xfb;
     // init video, setup console framebuffer
     rrc_gui_xfb_alloc(&xfb, false);
     rrc_gui_display_con(xfb, true);
     rrc_gui_display_banner(xfb);
+
+    init_exception_handlers();
+
+    *(u32 *)0 = 100;
 
     rrc_dbg_printf("Initialising SD card");
     RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
