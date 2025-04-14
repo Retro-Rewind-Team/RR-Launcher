@@ -53,7 +53,7 @@ void init_exception_handlers()
 
     for (u32 i = 0; i < sizeof(offsets) / sizeof(u32); i++)
     {
-        u32 *instr = (u32 *)(EXCEPTION_HANDLER_BASE_ADDR + i);
+        u32 *instr = (u32 *)(EXCEPTION_HANDLER_BASE_ADDR + offsets[i]);
 
         /* set up and branch to exception catch asm */
         /* stmw 0,0x3500(0) (copy contents of all GPRs to EXCEPTION_ASM_REGS_ADDR) -
