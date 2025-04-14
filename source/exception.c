@@ -23,8 +23,8 @@
     void `init_exception_handlers()'.
     See: https://github.com/fail0verflow/hbc/blob/master/wiipax/stub/exception.c
 
-    Copyright (C) fail0verflow and all contributors. Licensed under GPL-2-or-later.
-    See <https://www.gnu.org/licenses/> for license details.
+    Copyright (C) fail0verflow/Team Twiizers and all contributors. Licensed under
+    GPL-2-or-later. See <https://www.gnu.org/licenses/> for license details.
 */
 
 #include <string.h>
@@ -55,7 +55,9 @@ void init_exception_handlers()
         u32 *instr = (u32 *)(EXCEPTION_HANDLER_BASE_ADDR + i);
 
         /* set up and branch to exception catch asm */
-        instr[0] = 0xbc003500;     // stmw 0,0x3500(0)
+        /* stmw 0,0x3500(0) (copy contents of all GPRs to EXCEPTION_ASM_REGS_ADDR) -
+           this is where registers are stored for display in the handler */
+        instr[0] = 0xbc003500;
         instr[1] = 0x38600000 | i; // li 3,i (load vector value into general purpose register 3)
         instr[2] = 0x48003602;     // ba 0x3600 (branch to asm based on EXCEPTION_ASM_ADDR)
         instr[3] = 0;

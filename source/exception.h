@@ -52,6 +52,7 @@
 #define EXCEPTION_HANDLERS_LEN 0x1f00
 
 #define EXCEPTION_ASM_ADDR 0x800003600
+#define EXCEPTION_ASM_REGS_ADDR 0x80003500
 
 void init_exception_handlers();
 
