@@ -29,6 +29,7 @@
 #include "loader.h"
 #include "res.h"
 #include "console.h"
+#include "exception.h"
 
 int rrc_loader_locate_data_part(u32 *data_part_offset)
 {
@@ -183,6 +184,7 @@ void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
         IOS_CloseAsync(i, 0, 0);
     }
 
+    deinit_exception_handlers();
     IRQ_Disable();
 
     // Set the stack pointer to the safe address space so we don't overwrite local variables when copying sections.

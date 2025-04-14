@@ -45,6 +45,7 @@
 #include "res.h"
 #include "settingsfile.h"
 #include "result.h"
+#include "exception.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -63,6 +64,8 @@ int main(int argc, char **argv)
     s64 systime_start = gettime();
     // response codes for various library functions
     int res;
+
+    init_exception_handlers();
 
     void *xfb;
     // init video, setup console framebuffer
