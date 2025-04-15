@@ -25,36 +25,9 @@
 /* amount of time to display exception screen before exiting */
 #define EXCEPTION_DISPLAY_TIME_SEC 10
 
-/* offsets from EXCEPTION_HANDLER_BASE_ADDR */
-#define EXCEPTION_HANDLER_STUB_OFFSETS { \
-    0x0100,                              \
-    0x0200,                              \
-    0x0300,                              \
-    0x0400,                              \
-    0x0500,                              \
-    0x0600,                              \
-    0x0700,                              \
-    0x0800,                              \
-    0x0900,                              \
-    0x0D00,                              \
-    0x0F00,                              \
-    0x1300,                              \
-    0x1400,                              \
-    0x1700,                              \
-};
-
-/* the instruction to use when de-initing (b 0x0) */
-#define EXCEPTION_HANDLER_DEINIT_INSTR 0x48000000
-
-#define EXCEPTION_HANDLERS_LEN 0x1f00
-
-#define EXCEPTION_ASM_REGS_ADDR 0x80003500
-
 void init_exception_handlers();
 
-/* we need to de-init these before patching because weirdness may happen - our
-   exception handler may get overwritten during patching so replace all of them
-   with a simple branch to self (hang) */
+/* in the event this is ever useful, provide it */
 void deinit_exception_handlers();
 
 #endif

@@ -73,8 +73,6 @@ int main(int argc, char **argv)
 
     init_exception_handlers();
 
-    *(u32 *)0 = 100;
-
     rrc_dbg_printf("Initialising SD card");
     RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
     // force filesystem root
