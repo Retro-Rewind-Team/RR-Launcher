@@ -85,6 +85,8 @@ void _handle_exception(int exception)
 {
     u32 *x;
     u32 i;
+    rrc_con_clear(false);
+    rrc_con_cursor_seek_to(0, 0);
     char *type = _exception_to_type(exception);
 
     printf(RRC_CON_ANSI_FG_BRIGHT_WHITE "\n%s exception occurred! Reloading in %i secs...\n", type, EXCEPTION_DISPLAY_TIME_SEC);
