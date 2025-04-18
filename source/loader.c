@@ -29,6 +29,7 @@
 #include "loader.h"
 #include "res.h"
 #include "console.h"
+#include "exception.h"
 
 int rrc_loader_locate_data_part(u32 *data_part_offset)
 {

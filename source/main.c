@@ -45,6 +45,7 @@
 #include "res.h"
 #include "settingsfile.h"
 #include "result.h"
+#include "exception.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -69,6 +70,8 @@ int main(int argc, char **argv)
     rrc_gui_xfb_alloc(&xfb, false);
     rrc_gui_display_con(xfb, true);
     rrc_gui_display_banner(xfb);
+
+    init_exception_handlers();
 
     rrc_dbg_printf("Initialising SD card");
     RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
