@@ -20,6 +20,7 @@
 #define RRC_UPDATE_H
 
 #include <curl/curl.h>
+#include "../result.h"
 
 #define RRC_UPDATE_LARGE_THRESHOLD (long)(1000 * 1000 * 100) /* 100MB */
 #define RRC_VERSIONFILE "RetroRewind6/version.txt"
@@ -48,84 +49,21 @@ struct rrc_update_state
 /*
     Returns an int specifying version information from version.txt.
     E.g., 4.2.0 = 420
-    Returns negative status on failure.
     SD driver must be loaded for this to work.
 */
-int rrc_update_get_current_version();
+struct rrc_result rrc_update_get_current_version(int *version);
 
 /*
     Writes the specified version int into version.txt.
-    Returns negative status on failure.
     SD driver must be loaded for this to work.
 */
-int rrc_update_set_current_version(int version);
+struct rrc_result rrc_update_set_current_version(int version);
 
 /*
     Downloads a Retro Rewind ZIP. Uses the console to display progress.
     Stores on SD in the file given by `filename'.
-
-    Returns 0 on success, negative CURLcode status on error.
 */
-int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
-
-/*
-    Check for updates. If there are updates, the return code is 0 and `ret' is populated with
-    URL information and amount of updates.
-    If there are no updates, `ret' will be NULL and the return code will be 0.
-    On failure, `ret' will be NULL and the return code will be negative.
-*/
-int rrc_update_check_for_updates(struct rrc_update_state *ret);
-
-enum rrc_update_ecode
-{
-    /* Success */
-    RRC_UPDATE_EOK = 0,
-
-    /* CURL error. `ccode' is set to that error if this is set. */
-    RRC_UPDATE_ECURL,
-
-    /* IO Errors */
-    /* Could not open file */
-    RRC_UPDATE_INVFILE,
-    /* Failed to create directories for file */
-    RRC_UPDATE_EMKDIR,
-    /* Failed to open/create output file for the extracted file. */
-    RRC_UPDATE_EOPEN_OUTFILE,
-    /* Failed to open or stat file in zip archive. */
-    RRC_UPDATE_EOPEN_AR_FILE,
-    /* Failed to read archive file contents. */
-    RRC_UPDATE_EREAD_AR,
-    /* Failed to write archive contents into output file on SD card. */
-    RRC_UPDATE_EWRITE_OUT,
-    /* Failed to write version.txt file. */
-    RRC_UPDATE_EWRITE_VERSION,
-    /* Failed to get free space on SD card */
-    RRC_UPDATE_ESD_SZ,
-    /* Not enough space on SD card to download ZIP */
-    RRC_UPDATE_EZIP_SPC,
-    /* Not enough space on SD card to extract ZIP */
-    RRC_UPDATE_EZIP_EX_SPC,
-
-    /* ZIP Errors */
-    /* Failed to open the downloaded update ZIP file */
-    RRC_UPDATE_EOPEN_ZIP
-};
-
-typedef union
-{
-    /* defined if ecode == ECURL */
-    CURLcode ccode;
-    /* defined for IO errors except INVFILE */
-    int errnocode;
-    /* defined for ZIP errors */
-    int ziperr;
-} rrc_update_result_inner;
-
-struct rrc_update_result
-{
-    enum rrc_update_ecode ecode;
-    rrc_update_result_inner inner;
-};
+struct rrc_result rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips);
 
 /*
     Get the total size of all update ZIPs in bytes. This can be used to determine whether
@@ -155,12 +93,12 @@ int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size);
     Returns 0 on success and a negative code on fail.
     `res' is a pointer to a valid `struct rrc_update_result' on return.
 */
-void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res);
+struct rrc_result rrc_update_do_updates_with_state(struct rrc_update_state *state);
 
 /*
     Checks if updates are needed, and if there are, prompt the user and and download them. See `rrc_update_do_updates_with_state` for more details.
     This also writes the number of available updates into `count' and returns whether the updates were actually installed.
 */
-bool rrc_update_do_updates(void *xfb, int *count);
+struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *any_updates_installed);
 
 #endif

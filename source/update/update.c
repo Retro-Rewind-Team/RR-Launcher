@@ -35,33 +35,41 @@
 
 #define _RRC_UPDATE_ZIP_NAME "update.zip"
 
-int rrc_update_get_current_version()
+struct rrc_result rrc_update_get_current_version(int *version)
 {
     FILE *file = fopen(RRC_VERSIONFILE, "r");
     if (file == NULL)
-        return -5;
+    {
+        return rrc_result_create_error_errno(errno, "Failed to open version file for reading");
+    }
 
     int fd = fileno(file);
     struct stat statbuf;
     int res = stat(RRC_VERSIONFILE, &statbuf);
     if (res != 0)
-        return -4;
+    {
+        return rrc_result_create_error_errno(errno, "Failed to stat version file to get its file size");
+    }
 
     int sz = statbuf.st_size;
     char verstring[sz + 1];
     if (read(fd, (void *)verstring, sz) == 0)
-        return -3;
+    {
+        return rrc_result_create_error_errno(errno, "Failed to read version string from file");
+    }
 
     if (fclose(file) != 0)
-        return -2;
+    {
+        return rrc_result_create_error_errno(errno, "Failed to close version file");
+    }
 
     /* add null termination */
     verstring[sz] = '\0';
 
-    return rrc_versionsfile_parse_verstring(verstring);
+    return rrc_versionsfile_parse_verstring(verstring, version);
 }
 
-int rrc_update_set_current_version(int version)
+struct rrc_result rrc_update_set_current_version(int version)
 {
     int p1 = version / 100;
     version %= 100;
@@ -73,14 +81,23 @@ int rrc_update_set_current_version(int version)
     RRC_ASSERT(written < sizeof(out), "version string too long");
     FILE *file = fopen(RRC_VERSIONFILE, "w");
     if (file == NULL)
-        return -5;
+    {
+        return rrc_result_create_error_errno(errno, "Failed to open version file for writing");
+    }
 
     if (fwrite(out, 1, written, file) != written)
     {
-        return -4;
+        return rrc_result_create_error_errno(errno, "Failed to write version string");
     }
 
-    return fclose(file);
+    if (fclose(file) == 0)
+    {
+        return rrc_result_success;
+    }
+    else
+    {
+        return rrc_result_create_error_errno(errno, "Failed to close version file");
+    }
 }
 
 int lp = -1;
@@ -144,7 +161,7 @@ size_t _rrc_update_writefunction_empty(char *ptr, size_t size, size_t nmemb, voi
 /*
     Get the content-length of a ZIP download in bytes.
 */
-int _rrc_update_get_zip_size(char *url, curl_off_t *size)
+CURLcode _rrc_update_get_zip_size(char *url, curl_off_t *size)
 {
     CURLcode cres;
     CURL *curl = curl_easy_init();
@@ -165,10 +182,10 @@ int _rrc_update_get_zip_size(char *url, curl_off_t *size)
         return cres;
     }
 
-    return 0;
+    return CURLE_FAILED_INIT;
 }
 
-int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips)
+struct rrc_result rrc_update_download_zip(char *url, char *filename, int current_zip, int max_zips)
 {
     CURLcode cres;
     CURL *curl = curl_easy_init();
@@ -179,7 +196,7 @@ int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_
         fp = fopen(filename, "wb");
         if (fp == NULL)
         {
-            return -100;
+            return rrc_result_create_error_errno(errno, "Failed to create temporary ZIP file for update download");
         }
 
         curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -202,26 +219,15 @@ int rrc_update_download_zip(char *url, char *filename, int current_zip, int max_
 
             fclose(fp);
             curl_easy_cleanup(curl);
-            return -cres;
+            return rrc_result_create_error_curl(cres, "Failed to download update ZIP");
         }
 
         fclose(fp);
         curl_easy_cleanup(curl);
+        return rrc_result_success;
     }
 
-    return 0;
-}
-
-int rrc_update_check_for_updates(struct rrc_update_state *ret)
-{
-    int current_ver = rrc_update_get_current_version();
-    if (current_ver < 0)
-    {
-        ret = NULL;
-        return current_ver;
-    }
-
-    return 0;
+    return rrc_result_create_error_curl(CURLE_FAILED_INIT, "Failed to init curl");
 }
 
 #define RETURN_IO_ERR(err)            \
@@ -235,7 +241,7 @@ int rrc_update_check_for_updates(struct rrc_update_state *ret)
 /**
  * Creates any directories for a given path like "a/b/c/d.txt", one at a time, starting with the outermost dir.
  */
-static void mkdir_recursive(const char *fp, struct rrc_update_result *res)
+static struct rrc_result mkdir_recursive(const char *fp)
 {
     char tmp_path[PATH_MAX];
     RRC_ASSERT(strlen(fp) < PATH_MAX, "path should never be longer than PATH_MAX");
@@ -250,21 +256,21 @@ static void mkdir_recursive(const char *fp, struct rrc_update_result *res)
             int err = mkdir(tmp_path, 0777);
             if (err != 0 && errno != EEXIST)
             {
-                RETURN_IO_ERR(RRC_UPDATE_EMKDIR);
+                return rrc_result_create_error_errno(errno, "Failed to create recursive directories for path");
             }
         }
     }
+
+    return rrc_result_success;
 }
 
-void rrc_update_extract_zip_archive(struct rrc_update_result *res)
+struct rrc_result rrc_update_extract_zip_archive()
 {
     int zip_err;
     struct zip *archive = zip_open(_RRC_UPDATE_ZIP_NAME, ZIP_CHECKCONS | ZIP_RDONLY, &zip_err);
     if (archive == NULL)
     {
-        res->ecode = RRC_UPDATE_EOPEN_ZIP;
-        res->inner.ziperr = zip_err;
-        return;
+        return rrc_result_create_error_zip(zip_err, "Failed to open downloaded ZIP archive");
     }
 
     u32 zip_entries = zip_get_num_entries(archive, 0);
@@ -275,23 +281,27 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
     {
         zip_stat_t stat;
         int err = zip_stat_index(archive, i, 0, &stat);
-        if (err != 0 || !(stat.valid & (ZIP_STAT_SIZE | ZIP_STAT_NAME | ZIP_STAT_SIZE)) || stat.name[0] == 0)
+        if (err != 0)
         {
-            RETURN_IO_ERR(RRC_UPDATE_EOPEN_AR_FILE);
+            return rrc_result_create_error_zip(err, "Failed to stat file in archive");
         }
 
-        long sd_free = sd_get_free_space();
-        if (sd_free == -1)
+        if (!(stat.valid & (ZIP_STAT_SIZE | ZIP_STAT_NAME | ZIP_STAT_SIZE)))
         {
-            res->ecode = RRC_UPDATE_ESD_SZ;
-            res->inner.errnocode = errno;
-            return;
+            return rrc_result_create_error_misc_update("ZIP Archive entry contains invalid attributes");
         }
-        else if (stat.size > sd_free)
+
+        if (stat.name[0] == 0)
         {
-            res->ecode = RRC_UPDATE_EZIP_EX_SPC;
-            res->inner.errnocode = ENOSPC;
-            return;
+            return rrc_result_create_error_misc_update("Empty file name in ZIP archive");
+        }
+
+        unsigned long sd_free;
+        TRY(sd_get_free_space(&sd_free));
+
+        if (stat.size > sd_free)
+        {
+            return rrc_result_create_error_misc_update("Not enough free space on SD card for update");
         }
 
         if (stat.name[strlen(stat.name) - 1] == '/')
@@ -303,9 +313,7 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
         zip_file_t *zip_file = zip_fopen_index(archive, i, ZIP_FL_ENC_UTF_8);
         if (!zip_file)
         {
-            res->ecode = RRC_UPDATE_EOPEN_AR_FILE;
-            res->inner.ziperr = -1;
-            return;
+            return rrc_result_create_error_misc_update("Failed to open file in ZIP archive");
         }
 
         const char *filepath = stat.name;
@@ -321,20 +329,16 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
             // At least this ENOENT case is recoverable by recursively creating the missing directories, so only return error for all other errors.
             if (errno != ENOENT)
             {
-                RETURN_IO_ERR(RRC_UPDATE_EOPEN_OUTFILE);
+                return rrc_result_create_error_errno(errno, "Failed to create output file for extracting ZIP entry");
             }
 
-            mkdir_recursive(filepath, res);
-            if (res->ecode != RRC_UPDATE_EOK)
-            {
-                return;
-            }
+            TRY(mkdir_recursive(filepath));
 
             outfile = fopen(filepath, "w");
             if (!outfile)
             {
                 // We're still getting errors when opening the file even after creating missing directories. Nothing more we can do.
-                RETURN_IO_ERR(RRC_UPDATE_EOPEN_OUTFILE);
+                return rrc_result_create_error_errno(errno, "Failed to open output file for extracting ZIP entry after creating directories");
             }
         }
 
@@ -344,19 +348,20 @@ void rrc_update_extract_zip_archive(struct rrc_update_result *res)
             int written = fwrite(buf, 1, read, outfile);
             if (written != read)
             {
-                RETURN_IO_ERR(RRC_UPDATE_EWRITE_OUT);
+                return rrc_result_create_error_errno(errno, "Failed to fully write ZIP chunk");
             }
         }
 
         if (read < 0)
         {
-            RETURN_IO_ERR(RRC_UPDATE_EREAD_AR);
+            return rrc_result_create_error_errno(errno, "Failed to write ZIP chunk");
         }
 
         fclose(outfile);
     }
 
     zip_close(archive);
+    return rrc_result_success;
 }
 
 int rrc_update_get_total_update_size(struct rrc_update_state *state, curl_off_t *size)
@@ -393,72 +398,42 @@ int rrc_update_is_large(struct rrc_update_state *state, curl_off_t *size)
     return (*size > RRC_UPDATE_LARGE_THRESHOLD);
 }
 
-void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc_update_result *res)
+struct rrc_result rrc_update_do_updates_with_state(struct rrc_update_state *state)
 {
-    res->ecode = RRC_UPDATE_EOK;
-
     while (state->current_update_num < state->num_updates)
     {
         char *url = state->update_urls[state->current_update_num];
 
         curl_off_t zipsz;
-        int szres = _rrc_update_get_zip_size(url, &zipsz);
-        if (szres != 0)
+        CURLcode szres = _rrc_update_get_zip_size(url, &zipsz);
+        if (szres != CURLE_OK)
         {
-            res->ecode = RRC_UPDATE_ECURL;
-            res->inner.ccode = szres;
-            return;
+            return rrc_result_create_error_curl(szres, "Failed to get update ZIP size");
         }
 
-        unsigned long sd_free = sd_get_free_space();
-        if (sd_free == -1)
-        {
-            res->ecode = RRC_UPDATE_ESD_SZ;
-            res->inner.errnocode = errno;
-            return;
-        }
+        unsigned long sd_free;
+        TRY(sd_get_free_space(&sd_free));
 
         if (zipsz > sd_free)
         {
-            res->ecode = RRC_UPDATE_EZIP_SPC;
-            res->inner.errnocode = ENOSPC;
-            return;
+            return rrc_result_create_error_misc_update("Not enough free space on SD card for update");
         }
 
-        int dlres = rrc_update_download_zip(url, _RRC_UPDATE_ZIP_NAME, state->current_update_num, state->num_updates);
-
-        if (dlres == -100)
-        {
-            res->ecode = RRC_UPDATE_INVFILE;
-            return;
-        }
-        else if (dlres < 0)
-        {
-            res->inner.ccode = -dlres;
-            res->ecode = RRC_UPDATE_ECURL;
-            return;
-        }
+        TRY(rrc_update_download_zip(url, _RRC_UPDATE_ZIP_NAME, state->current_update_num, state->num_updates));
 
         struct stat sb;
         int s = stat(_RRC_UPDATE_ZIP_NAME, &sb);
         if (s == -1)
         {
-            res->inner.ccode = -1;
-            res->ecode = RRC_UPDATE_INVFILE;
-            return;
+            return rrc_result_create_error_errno(errno, "Failed to stat update ZIP file");
         }
 
-        rrc_update_extract_zip_archive(res);
-        if (res->ecode != RRC_UPDATE_EOK)
-        {
-            return;
-        }
+        TRY(rrc_update_extract_zip_archive());
 
         int rres = remove(_RRC_UPDATE_ZIP_NAME);
         if (rres == -1)
         {
-            res->ecode = RRC_UPDATE_INVFILE;
-            return;
+            return rrc_result_create_error_errno(errno, "Failed to remove temporary update file");
         }
 
         // Now remove any deleted files.
@@ -473,26 +448,25 @@ void rrc_update_do_updates_with_state(struct rrc_update_state *state, struct rrc
                 int rmres = remove(file->path);
                 if (rmres != 0 && errno != ENOENT)
                 {
-                    RETURN_IO_ERR(RRC_UPDATE_INVFILE);
+                    return rrc_result_create_error_errno(errno, "Failed to remove deleted file for update");
                 }
             }
         }
 
         // Update the version.txt file
-        int sdres = rrc_update_set_current_version(state->update_versions[state->current_update_num]);
-        if (sdres < 0)
-        {
-            RETURN_IO_ERR(RRC_UPDATE_EWRITE_VERSION);
-        }
+        TRY(rrc_update_set_current_version(state->update_versions[state->current_update_num]));
 
         state->current_update_num++;
     }
+
+    return rrc_result_success;
 }
 
-bool rrc_update_do_updates(void *xfb, int *count)
+struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_installed)
 {
     rrc_con_clear(true);
 
+    *updates_installed = false;
     char *versionsfile = NULL;
     char *deleted_versionsfile = NULL;
     int num_deleted_files = 0;
@@ -505,15 +479,12 @@ bool rrc_update_do_updates(void *xfb, int *count)
     {
         RRC_FATAL("couldnt get version file! res: %i\n", res);
     }
-    int current = rrc_update_get_current_version();
+    int current;
+    TRY(rrc_update_get_current_version(&current));
     RRC_ASSERT(current >= 0, "failed to read current version file");
     rrc_dbg_printf("Current version: %i\n", current);
 
-    res = rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, count, &zip_urls, &update_versions);
-    if (res < 0)
-    {
-        RRC_FATAL("couldnt get necessary download urls! res: %i\n", res);
-    }
+    TRY(rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, count, &zip_urls, &update_versions));
 
     if (*count > 0)
     {
@@ -522,7 +493,7 @@ bool rrc_update_do_updates(void *xfb, int *count)
         enum rrc_prompt_result result = rrc_prompt_2_options(xfb, lines, 1, "Update", "Skip", RRC_PROMPT_RESULT_YES, RRC_PROMPT_RESULT_NO);
         if (result == RRC_PROMPT_RESULT_NO)
         {
-            return false;
+            return rrc_result_success;
         }
     }
 
@@ -532,11 +503,8 @@ bool rrc_update_do_updates(void *xfb, int *count)
         RRC_FATAL("couldnt get files to remove! res: %i\n", res);
     }
 
-    res = rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files);
-    if (res < 0)
-    {
-        RRC_FATAL("couldnt parse deleted files! res: %i\n", res);
-    }
+    TRY(rrc_versionsfile_parse_deleted_files(deleted_versionsfile, current, &deleted_files, &num_deleted_files));
+
     rrc_dbg_printf("%i updates\n", *count);
     struct rrc_update_state state =
         {
@@ -571,16 +539,12 @@ bool rrc_update_do_updates(void *xfb, int *count)
         RRC_ASSERT(result != RRC_PROMPT_RESULT_ERROR, "failed to generate prompt");
         if (result == RRC_PROMPT_RESULT_NO)
         {
-            return false;
+            return rrc_result_success;
         }
     }
 
-    struct rrc_update_result upres;
-    rrc_update_do_updates_with_state(&state, &upres);
-    if (upres.ecode != RRC_UPDATE_EOK)
-    {
-        RRC_FATAL("Update failed: %d (%d)\n", upres.ecode, upres.inner.errnocode);
-    }
+    TRY(rrc_update_do_updates_with_state(&state));
 
-    return true;
+    *updates_installed = true;
+    return rrc_result_success;
 }
