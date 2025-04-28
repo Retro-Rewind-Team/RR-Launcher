@@ -132,11 +132,8 @@ void rrc_con_display_splash()
 
     if (cached_version == -1)
     {
-        cached_version = rrc_update_get_current_version();
-        if (cached_version < 0)
-        {
-            RRC_FATAL("failed to get version: ret = %i", cached_version);
-        }
+        struct rrc_result version_result = rrc_update_get_current_version(&cached_version);
+        rrc_result_error_check_error_fatal(&version_result);
     }
 
     char vertext[32];

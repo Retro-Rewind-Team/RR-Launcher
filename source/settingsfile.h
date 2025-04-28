@@ -20,6 +20,7 @@
 #define RRC_SETTINGSFILE_H
 
 #include <gctypes.h>
+#include "result.h"
 
 #define RRC_SETTINGSFILE_DEFAULT 0            /* disabled */
 #define RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT 1 /* enabled */
@@ -41,14 +42,20 @@ struct rrc_settingsfile
 };
 
 /**
+ * Creates a settingsfile on the SD card.
+ */
+struct rrc_result rrc_settingsfile_create();
+
+/**
  * Initializes an `rrc_settingsfile` by reading it from the sd card.
  * If it does not already exist, this function will create it and initialize the file with default values.
+ * The settings pointee will always be fully initialized, even in case of an error (in which case it will have default values).
  */
-enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *settings);
+struct rrc_result rrc_settingsfile_parse(struct rrc_settingsfile *settings);
 
 /**
  * Writes an `rrc_settingsfile` to the sd card.
  */
-enum rrc_settingsfile_status rrc_settingsfile_store(struct rrc_settingsfile *settings);
+struct rrc_result rrc_settingsfile_store(struct rrc_settingsfile *settings);
 
 #endif

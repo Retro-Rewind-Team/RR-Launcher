@@ -51,87 +51,132 @@
 #define RRC_SETTINGSFILE_MAGIC 1920234103
 #define RRC_SETTINGSFILE_VERSION 0
 
-static u32 expect_read_u32(FILE *file, const char *what)
+struct rrc_result expect_read_u32(FILE *file, u32 *val, const char *what)
 {
-    u32 val;
-    RRC_ASSERTEQ(fread(&val, sizeof(u32), 1, file), 1, what);
-    return val;
+    int read = fread(val, sizeof(u32), 1, file);
+    if (read == 1)
+    {
+        return rrc_result_success;
+    }
+    else
+    {
+        return rrc_result_create_error_corrupted_settingsfile(what);
+    }
 }
 
-static void rrc_settings_file_write_header(FILE *file, u32 entry_count)
+static struct rrc_result rrc_settingsfile_write_header(FILE *file, u32 entry_count)
 {
     u32 magic = RRC_SETTINGSFILE_MAGIC;
-    RRC_ASSERTEQ(fwrite(&magic, sizeof(magic), 1, file), 1, "write magic");
+    if (fwrite(&magic, sizeof(magic), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write magic header");
+    }
 
     u32 version = RRC_SETTINGSFILE_VERSION;
-    RRC_ASSERTEQ(fwrite(&version, sizeof(version), 1, file), 1, "write version");
+    if (fwrite(&version, sizeof(version), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write version");
+    }
 
-    RRC_ASSERTEQ(fwrite(&entry_count, sizeof(entry_count), 1, file), 1, "write entry count");
+    if (fwrite(&entry_count, sizeof(entry_count), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write entry count");
+    }
+
+    return rrc_result_success;
 }
 
-int rrc_settingsfile_create()
+struct rrc_result rrc_settingsfile_create()
 {
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "w");
     if (!file)
     {
-        return RRC_SETTINGS_FILE_FOPEN;
+        return rrc_result_create_error_errno(errno, "could not create settingsfile, maybe the sd card is locked?");
     }
 
-    rrc_settings_file_write_header(file, 0);
+    rrc_settingsfile_write_header(file, 0);
     fclose(file);
-    return 0;
+
+    return rrc_result_success;
 }
 
-enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *settings)
+void rrc_settingsfile_init_defaults(struct rrc_settingsfile *settings)
 {
+    settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
+    settings->language = RRC_SETTINGSFILE_DEFAULT;
+    settings->savegame = RRC_SETTINGSFILE_DEFAULT;
+    settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
+}
+
+struct rrc_result rrc_settingsfile_parse(struct rrc_settingsfile *settings)
+{
+    // Initialize it with defaults early so that it will always at least have valid values even in case of an error.
+    rrc_settingsfile_init_defaults(settings);
+
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "r");
     if (!file && errno == ENOENT)
     {
         // File doesn't exist. Create it and initialize it with default values.
-        if (rrc_settingsfile_create() == RRC_SETTINGS_FILE_FOPEN)
-        {
-            return RRC_SETTINGS_FILE_FOPEN;
-        }
+        TRY(rrc_settingsfile_create());
 
         file = fopen(RRC_SETTINGSFILE_PATH, "r");
     }
 
     if (!file)
     {
-        return RRC_SETTINGS_FILE_FOPEN;
+        // Either an error other than ENOENT happened or we still fail to open after having created the file.
+        // Either way, it's unclear what exactly went wrong here...
+        return rrc_result_create_error_errno(errno, "failed to open file for reading after creating it");
     }
 
-    RRC_ASSERTEQ(expect_read_u32(file, "read file header"), RRC_SETTINGSFILE_MAGIC, "magic header mismatch");
-    expect_read_u32(file, "read file version"); // Version unused for now.
+    u32 magic;
+    TRY(expect_read_u32(file, &magic, "Failed to read magic bytes"));
+    if (magic != RRC_SETTINGSFILE_MAGIC)
+    {
+        return rrc_result_create_error_corrupted_settingsfile("Magic header mismatch");
+    }
+    u32 version;
+    TRY(expect_read_u32(file, &version, "Failed to read version number")); // Version unused for now.
 
-    u32 entry_count = expect_read_u32(file, "read entry count");
-
-    settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
-    settings->language = RRC_SETTINGSFILE_DEFAULT;
-    settings->savegame = RRC_SETTINGSFILE_DEFAULT;
-    settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
+    u32 entry_count;
+    TRY(expect_read_u32(file, &entry_count, "Failed to read entry count"));
 
     for (int i = 0; i < entry_count; i++)
     {
         // Read key length.
-        u32 key_length = expect_read_u32(file, "read key length");
+        u32 key_length;
+        TRY(expect_read_u32(file, &key_length, "Failed to read length of key"));
 
-        RRC_ASSERT(key_length < 32, "setting keys should not be longer than 32 characters");
+        if (key_length >= 32)
+        {
+            return rrc_result_create_error_corrupted_settingsfile("Settings key cannot be longer than 32 characters");
+        }
 
         // Read the key.
         char key[32];
-        int read = fread((void *)key, sizeof(char), key_length, file);
-        RRC_ASSERT(read == key_length, "failed to read key");
+        int read = fread(key, sizeof(char), key_length, file);
+        if (read != key_length)
+        {
+            return rrc_result_create_error_corrupted_settingsfile("Failed to fully read key");
+        }
+
         key[key_length] = 0;
 
         // Read value length. For now we always have u32 values.
-        u32 value_length = expect_read_u32(file, "read value length");
-        RRC_ASSERTEQ(value_length, 4, "value should always be a u32");
+        u32 value_length;
+        TRY(expect_read_u32(file, &value_length, "Failed to read length of value"));
+        if (value_length != 4)
+        {
+            return rrc_result_create_error_corrupted_settingsfile("Value length currently should always be 4 (u32)");
+        }
 
         // Read the value. Currently this is always a u32.
         u32 value;
-        read = fread((void *)&value, sizeof(u32), 1, file);
-        RRC_ASSERT(read == 1, "failed to read a u32 value");
+        read = fread(&value, sizeof(u32), 1, file);
+        if (read != 1)
+        {
+            return rrc_result_create_error_corrupted_settingsfile("Failed to fully read u32 value");
+        }
 
         if (strcmp(key, RRC_SETTINGSFILE_MY_STUFF_KEY) == 0)
         {
@@ -152,35 +197,54 @@ enum rrc_settingsfile_status rrc_settingsfile_parse(struct rrc_settingsfile *set
     }
 
     fclose(file);
-    return RRC_SETTINGSFILE_OK;
+    return rrc_result_success;
 }
 
-static void rrc_settingsfile_set_option(FILE *file, const char *key, u32 value)
+struct rrc_result rrc_settingsfile_set_option(FILE *file, const char *key, u32 value)
 {
     u32 key_len = strlen(key);
-    RRC_ASSERTEQ(fwrite(&key_len, sizeof(key_len), 1, file), 1, "write len");
-    RRC_ASSERTEQ(fwrite(key, 1, key_len, file), key_len, "write key");
+    if (fwrite(&key_len, sizeof(key_len), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write key length");
+    }
+
+    if (fwrite(key, 1, key_len, file) != key_len)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write key");
+    }
 
     u32 val_len = 4; // always a u32
-    RRC_ASSERTEQ(fwrite(&val_len, sizeof(val_len), 1, file), 1, "write value length");
-    RRC_ASSERTEQ(fwrite(&value, sizeof(value), 1, file), 1, "write value");
+    if (fwrite(&val_len, sizeof(val_len), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write value length");
+    }
+
+    if (fwrite(&value, sizeof(value), 1, file) != 1)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to write value");
+    }
+
+    return rrc_result_success;
 }
 
 /**
  * Writes an `rrc_settingsfile` to the sd card.
  */
-enum rrc_settingsfile_status rrc_settingsfile_store(struct rrc_settingsfile *settings)
+struct rrc_result rrc_settingsfile_store(struct rrc_settingsfile *settings)
 {
     FILE *file = fopen(RRC_SETTINGSFILE_PATH, "w");
-    RRC_ASSERT(file != NULL, "failed to open file");
+    if (file == NULL)
+    {
+        return rrc_result_create_error_errno(errno, "Failed to open settingsfile");
+    }
 
-    rrc_settings_file_write_header(file, 4);
+    rrc_settingsfile_write_header(file, 4);
 
-    rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_MY_STUFF_KEY, settings->my_stuff);
-    rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_LANGUAGE_KEY, settings->language);
-    rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->savegame);
-    rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_AUTOUPDATE_KEY, settings->auto_update);
+    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_MY_STUFF_KEY, settings->my_stuff));
+    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_LANGUAGE_KEY, settings->language));
+    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->savegame));
+    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_AUTOUPDATE_KEY, settings->auto_update));
 
     fclose(file);
-    return RRC_SETTINGSFILE_OK;
+    return rrc_result_success;
 }

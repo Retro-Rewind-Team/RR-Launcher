@@ -26,15 +26,9 @@
 
 #include "console.h"
 
-struct rrc_result rrc_result_create_success()
-{
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_NONE;
-    res.context = NULL;
-
-    return res;
-}
+const struct rrc_result rrc_result_success = {
+    .errtype = ESOURCE_NONE,
+};
 
 struct rrc_result rrc_result_create_error_curl(CURLcode error, const char *context)
 {
@@ -69,6 +63,36 @@ struct rrc_result rrc_result_create_error_zip(int error, const char *context)
     return res;
 }
 
+struct rrc_result rrc_result_create_error_corrupted_settingsfile(const char *context)
+{
+    struct rrc_result res;
+
+    res.errtype = ESOURCE_CORRUPTED_SETTINGSFILE;
+    res.context = context;
+
+    return res;
+}
+
+struct rrc_result rrc_result_create_error_corrupted_versionfile(const char *context)
+{
+    struct rrc_result res;
+
+    res.errtype = ESOURCE_CORRUPTED_VERSIONFILE;
+    res.context = context;
+
+    return res;
+}
+
+struct rrc_result rrc_result_create_error_misc_update(const char *context)
+{
+    struct rrc_result res;
+
+    res.errtype = ESOURCE_UPDATE_MISC;
+    res.context = context;
+
+    return res;
+}
+
 bool rrc_result_is_error(struct rrc_result *result)
 {
     return result != NULL && result->errtype != ESOURCE_NONE;
@@ -88,7 +112,13 @@ char *rrc_result_strerror(struct rrc_result *result)
     case ESOURCE_ERRNO:
         return strerror(result->inner.errnocode);
     case ESOURCE_ZIP:
-        return "TODO: We didn't implement this yet";
+        return "ZIP file error.";
+    case ESOURCE_CORRUPTED_SETTINGSFILE:
+        return "Corrupted settings file detected.";
+    case ESOURCE_CORRUPTED_VERSIONFILE:
+        return "Corrupted version file detected.";
+    case ESOURCE_UPDATE_MISC:
+        return "Update failed.";
     default:
         return NULL;
     }
