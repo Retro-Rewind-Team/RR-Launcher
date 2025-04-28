@@ -74,6 +74,7 @@ static char *savegame_label = "Separate savegame";
 static char *autoupdate_label = "Automatic updates";
 static char *perform_updates_label = "Perform updates";
 static char *changes_saved_status = RRC_CON_ANSI_FG_GREEN "Changes saved." RRC_CON_ANSI_CLR;
+static char *changes_not_saved_status = RRC_CON_ANSI_BG_BRIGHT_RED "Error saving changes." RRC_CON_ANSI_CLR;
 static char *exit_label = "Exit";
 
 static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
@@ -377,6 +378,12 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     struct rrc_result res = rrc_settingsfile_store(stored_settings);
                     rrc_result_error_check_error_normal(&res, xfb);
 
+                    if (res.errtype != ESOURCE_NONE)
+                    {
+                        strncpy(status_message, changes_not_saved_status, sizeof(status_message));
+                        break;
+                    }
+
                     for (int i = 0; i < entry_count; i++)
                     {
                         if (entries[i].type == ENTRY_TYPE_SELECT)
@@ -408,9 +415,9 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                         {
                             snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
                         }
-
-                        rrc_con_clear(true);
                     }
+
+                    rrc_con_clear(true);
 
                     break;
                 }

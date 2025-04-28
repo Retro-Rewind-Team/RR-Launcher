@@ -40,7 +40,7 @@ struct rrc_result rrc_update_get_current_version(int *version)
     FILE *file = fopen(RRC_VERSIONFILE, "r");
     if (file == NULL)
     {
-        return rrc_result_create_error_errno(errno, "Failed to open version file for reading");
+        return rrc_result_create_error_errno(errno, "Failed to open version file " RRC_VERSIONFILE " for reading");
     }
 
     int fd = fileno(file);
@@ -477,10 +477,12 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
     rrc_con_update("Get Versions", 0);
     if (res < 0)
     {
-        RRC_FATAL("couldnt get version file! res: %i\n", res);
+        return rrc_result_create_error_curl(-res, "Failed to get version information.");
     }
+
     int current;
     TRY(rrc_update_get_current_version(&current));
+
     RRC_ASSERT(current >= 0, "failed to read current version file");
     rrc_dbg_printf("Current version: %i\n", current);
 

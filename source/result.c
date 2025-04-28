@@ -119,6 +119,8 @@ char *rrc_result_strerror(struct rrc_result *result)
         return "Corrupted version file detected.";
     case ESOURCE_UPDATE_MISC:
         return "Update failed.";
+    case ESOURCE_SD_CARD:
+        return "SD card error.";
     default:
         return NULL;
     }
@@ -138,11 +140,12 @@ void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb)
 
     char *lines[] = {
         line1,
+        "",
         "Additional info:",
         (char *)result->context,
     };
 
-    rrc_prompt_1_option(xfb, lines, 3, "OK");
+    rrc_prompt_1_option(xfb, lines, 4, "OK");
 }
 
 void rrc_result_error_check_error_fatal(struct rrc_result *result)

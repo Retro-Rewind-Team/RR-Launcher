@@ -74,7 +74,18 @@ int main(int argc, char **argv)
     init_exception_handlers();
 
     rrc_dbg_printf("Initialising SD card");
-    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
+
+    if (fatInitDefault() != true)
+    {
+        struct rrc_result sdfail = {
+            .errtype = ESOURCE_SD_CARD,
+            .context = "Couldn't mount the SD card - is it inserted?",
+            .inner = {
+                .errnocode = EIO}};
+
+        rrc_result_error_check_error_fatal(&sdfail);
+    }
+
     // force filesystem root
     chdir("../../../../..");
 

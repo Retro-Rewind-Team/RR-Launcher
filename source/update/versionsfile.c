@@ -150,8 +150,6 @@ int rrc_versionsfile_get_versionsfile(char **result)
         if (res != CURLE_OK)
         {
             // TODO: report error better
-            printf("curl_easy_perform() failed: %s\n",
-                   curl_easy_strerror(res));
             return -res;
         }
 

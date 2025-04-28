@@ -40,7 +40,9 @@ enum rrc_result_error_source
        but if we do detect it we can ask the user if they want to reset the file to its defaults. */
     ESOURCE_CORRUPTED_SETTINGSFILE,
     ESOURCE_UPDATE_MISC,
-    ESOURCE_CORRUPTED_VERSIONFILE
+    ESOURCE_CORRUPTED_VERSIONFILE,
+    /* Misc SD card errors: locked, not inserted etc. */
+    ESOURCE_SD_CARD
 };
 
 /* Because each library uses their own set of error codes, we need to support all
