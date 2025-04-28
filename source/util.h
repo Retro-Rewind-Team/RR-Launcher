@@ -33,6 +33,9 @@
 */
 #define DEBUG 1
 
+/* 10 seconds */
+#define RRC_CURL_TIMEOUT_MS 10 * 1000
+
 #define _RRC_STRING(s) #s
 
 // Whenever we have a loop waiting for wiipad button inputs, this timeout is used (in microseconds).

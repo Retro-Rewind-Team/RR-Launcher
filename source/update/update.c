@@ -171,6 +171,7 @@ CURLcode _rrc_update_get_zip_size(char *url, curl_off_t *size)
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
         curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_update_writefunction_empty);
         cres = curl_easy_perform(curl);
         if (cres != CURLE_OK)
@@ -205,6 +206,7 @@ struct rrc_result rrc_update_download_zip(char *url, char *filename, int current
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &numinfo);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_zipdl_progress_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_zipdl_write_data_callback);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
         /* Perform the request, cres gets the return code */

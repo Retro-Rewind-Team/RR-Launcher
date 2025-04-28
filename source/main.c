@@ -50,15 +50,6 @@
 /* 100ms */
 #define DISKCHECK_DELAY 100000
 
-void *wiisocket_init_thread_callback(void *res)
-{
-    // Note: the void* given to us is an int* that lives in the main function,
-    // because we want to assert everything from the main thread rather than asserting in here
-    // so that we don't potentially exit(1) from another thread while the main thread is doing some important reading/patching.
-    *(int *)res = wiisocket_init();
-    return NULL;
-}
-
 int main(int argc, char **argv)
 {
     s64 systime_start = gettime();
@@ -87,7 +78,13 @@ int main(int argc, char **argv)
     }
 
     // force filesystem root
-    chdir("../../../../..");
+    res = chdir("sd:/");
+
+    if (res == -1)
+    {
+        struct rrc_result r = rrc_result_create_error_errno(errno, "couldnt chdir");
+        rrc_result_error_check_error_fatal(&r);
+    }
 
     rrc_con_update("Initialise controllers", 0);
 
@@ -95,19 +92,7 @@ int main(int argc, char **argv)
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
-    rrc_con_update("Spawn background threads", 5);
-
-    // Initializing the network can take fairly long (seconds).
-    // It's not really needed right away anyway so we can do it on another thread in parallel to some of the disk reading
-    // and join on it later when we actually need it.
-    rrc_dbg_printf("spawn network init thread\n");
-    int wiisocket_res;
-    lwp_t wiisocket_thread;
-    res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
-    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
-
     rrc_con_update("Initialise DVD", 10);
-
     rrc_dbg_printf("init disk drive\n");
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
@@ -170,9 +155,8 @@ int main(int argc, char **argv)
 
     rrc_con_update("Await Network", 20);
 
-    res = LWP_JoinThread(wiisocket_thread, NULL);
-    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
-    RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
+    res = wiisocket_init();
+    RRC_ASSERTEQ(res, 0, "wiisocket_init");
 
     struct rrc_settingsfile stored_settings;
     struct rrc_result settingsfile_res = rrc_settingsfile_parse(&stored_settings);

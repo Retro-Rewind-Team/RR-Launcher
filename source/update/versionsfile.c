@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "../console.h"
+#include "../util.h"
 #include "versionsfile.h"
 
 #define _RRC_VERSIONSFILE_URL "http://update.rwfc.net:8000/RetroRewind/RetroRewindVersion.txt"
@@ -143,6 +144,7 @@ int rrc_versionsfile_get_versionsfile(char **result)
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_versionsfile_progress_callback);
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *)"Fetching Version Info");
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_versionsfile_write_callback);
         res = curl_easy_perform(curl);
@@ -186,6 +188,7 @@ int rrc_versionsfile_get_removed_files(char **result)
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_versionsfile_progress_callback);
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *)"Fetching Removed Files");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_versionsfile_write_callback);
         CURLcode res = curl_easy_perform(curl);
         if (res != CURLE_OK)
