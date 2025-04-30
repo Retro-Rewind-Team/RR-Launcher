@@ -304,6 +304,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
             WPAD_ScanPads();
             int wiipressed = WPAD_ButtonsDown(0);
             int gcpressed = PAD_ButtonsDown(0);
+
             if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_MENU)
             {
                 goto exit;
@@ -437,6 +438,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
             usleep(RRC_WPAD_LOOP_TIMEOUT);
         }
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
 
     goto launch;
