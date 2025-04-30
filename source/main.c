@@ -46,6 +46,7 @@
 #include "settingsfile.h"
 #include "result.h"
 #include "exception.h"
+#include "sd.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -64,36 +65,17 @@ int main(int argc, char **argv)
 
     init_exception_handlers();
 
-    rrc_dbg_printf("Initialising SD card");
-
-    if (fatInitDefault() != true)
-    {
-        struct rrc_result sdfail = {
-            .errtype = ESOURCE_SD_CARD,
-            .context = "Couldn't mount the SD card - is it inserted?",
-            .inner = {
-                .errnocode = EIO}};
-
-        rrc_result_error_check_error_fatal(&sdfail);
-    }
-
-    // force filesystem root
-    res = chdir("sd:/");
-
-    if (res == -1)
-    {
-        struct rrc_result r = rrc_result_create_error_errno(errno, "couldnt chdir");
-        rrc_result_error_check_error_fatal(&r);
-    }
+    // NOTE: We can't call any kind of printf before initialising libfat
+    struct rrc_result sdinit_res = rrc_sd_init();
+    rrc_result_error_check_error_fatal(&sdinit_res);
 
     rrc_con_update("Initialise controllers", 0);
-
-    rrc_dbg_printf("init controllers\n");
+    res = PAD_Init();
+    RRC_ASSERTEQ(res, 1, "PAD_Init");
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
     rrc_con_update("Initialise DVD", 10);
-    rrc_dbg_printf("init disk drive\n");
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
@@ -104,23 +86,6 @@ int main(int argc, char **argv)
     {
         exit(0);
     }
-
-    /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
-        If some button such as A is pressed in that window, initialise the full channel.
-        Otherwise, just go ahead and load the game. This saves the user time because on
-        most occasions all you want to do is play and not do anything in the settings.
-
-        For now, we're just loading the game. However, we need to do this in stages instead
-        of in one big routine (like the WFC launcher). This is because while we're reading
-        all of the necessary sections from disc, we're still initalising the network and
-        fetching version information in the background thread. This thread will return
-        version information as read from the API's text file, so when we join that thread,
-        we compare those versions against our local version.txt and then ask the user if they
-        want to update (if necessary). This replaces files on the SD card, so once all that
-        is done, we can finally read patches from the SD, apply them, and load the game.
-        So, all disc reading can be done in advance up to the point we read patch information
-        from the SD.
-    */
 
     // We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
@@ -201,25 +166,28 @@ int main(int argc, char **argv)
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
     rrc_con_clear(true);
 
-    rrc_con_print_text_centered(_RRC_ACTION_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_ACTION_ROW, "Press A to launch, or press B to load settings.");
     rrc_con_print_text_centered(_RRC_ACTION_ROW + 1, "Auto-launching in 3 seconds...");
 
     for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
     {
+        PAD_ScanPads();
         WPAD_ScanPads();
 
-        int pressed = WPAD_ButtonsDown(0);
-        if (pressed & RRC_WPAD_HOME_MASK)
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
+
+        if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_START)
         {
             return 0;
         }
 
-        if (pressed & RRC_WPAD_A_MASK)
+        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
         {
             break;
         }
 
-        if (pressed & RRC_WPAD_PLUS_MASK)
+        if (wiipressed & RRC_WPAD_B_MASK || gcpressed & PAD_BUTTON_B)
         {
             switch (rrc_settings_display(xfb, &stored_settings))
             {

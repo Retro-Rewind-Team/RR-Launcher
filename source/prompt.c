@@ -119,19 +119,21 @@ enum rrc_prompt_result rrc_prompt_2_options(
 
     while (1)
     {
+        PAD_ScanPads();
         WPAD_ScanPads();
-        int pressed = WPAD_ButtonsDown(0);
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
 
-        if (pressed & WPAD_BUTTON_LEFT || pressed & WPAD_BUTTON_RIGHT)
+        if ((wiipressed & (WPAD_BUTTON_LEFT | WPAD_BUTTON_RIGHT)) || (gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)))
         {
             dir_pressed = 1;
             selected_option = (selected_option == option1_result ? option2_result : option1_result);
         }
-        else if (dir_pressed && !(pressed & RRC_WPAD_LEFT_MASK) && !(pressed & RRC_WPAD_RIGHT_MASK))
+        else if (dir_pressed && (!(wiipressed & (RRC_WPAD_LEFT_MASK | RRC_WPAD_RIGHT_MASK)) || !(gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))))
         {
             dir_pressed = 0;
         }
-        else if (pressed & RRC_WPAD_A_MASK)
+        else if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
         {
             break;
         }
@@ -150,6 +152,8 @@ enum rrc_prompt_result rrc_prompt_2_options(
         }
 
         prev_selected_option = selected_option;
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
 
     rrc_gui_display_con(old_xfb, false);
@@ -212,11 +216,15 @@ void rrc_prompt_1_option(void *old_xfb,
     while (1)
     {
         WPAD_ScanPads();
-        int pressed = WPAD_ButtonsDown(0);
-        if (pressed & RRC_WPAD_A_MASK)
+        PAD_ScanPads();
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
+        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
         {
             break;
         }
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
 
     rrc_gui_display_con(old_xfb, false);

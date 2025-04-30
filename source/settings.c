@@ -25,11 +25,11 @@
 #include "prompt.h"
 #include <stdio.h>
 #include <string.h>
-#include <gctypes.h>
 #include <unistd.h>
 #include <wiiuse/wpad.h>
 #include <errno.h>
 #include <mxml.h>
+#include <gccore.h>
 
 enum settings_entry_type
 {
@@ -300,14 +300,16 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
         // because the current scene will remain "static" until a button is pressed
         while (1)
         {
+            PAD_ScanPads();
             WPAD_ScanPads();
-            int pressed = WPAD_ButtonsDown(0);
-            if (pressed & RRC_WPAD_HOME_MASK)
+            int wiipressed = WPAD_ButtonsDown(0);
+            int gcpressed = PAD_ButtonsDown(0);
+            if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_MENU)
             {
                 goto exit;
             }
 
-            if (pressed & RRC_WPAD_DOWN_MASK)
+            if (wiipressed & RRC_WPAD_DOWN_MASK || gcpressed & PAD_BUTTON_DOWN)
             {
                 if (selected_idx < entry_count - 1)
                 {
@@ -320,7 +322,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if (pressed & RRC_WPAD_UP_MASK)
+            if (wiipressed & RRC_WPAD_UP_MASK || gcpressed & PAD_BUTTON_UP)
             {
                 if (selected_idx > 0)
                 {
@@ -335,7 +337,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
             struct settings_entry *entry = &entries[selected_idx];
 
-            if ((pressed & RRC_WPAD_LEFT_MASK) && entry->type == ENTRY_TYPE_SELECT)
+            if ((wiipressed & RRC_WPAD_LEFT_MASK || gcpressed & PAD_BUTTON_LEFT) && entry->type == ENTRY_TYPE_SELECT)
             {
                 if (*entry->selected_option > 0)
                 {
@@ -349,7 +351,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if ((pressed & RRC_WPAD_RIGHT_MASK) && entry->type == ENTRY_TYPE_SELECT)
+            if ((wiipressed & RRC_WPAD_RIGHT_MASK || gcpressed & PAD_BUTTON_RIGHT) && entry->type == ENTRY_TYPE_SELECT)
             {
                 (*entry->selected_option)++;
 
@@ -361,7 +363,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if (pressed & RRC_WPAD_A_MASK)
+            if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
             {
                 if (entry->label == launch_label)
                 {
@@ -378,7 +380,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     struct rrc_result res = rrc_settingsfile_store(stored_settings);
                     rrc_result_error_check_error_normal(&res, xfb);
 
-                    if (res.errtype != ESOURCE_NONE)
+                    if (rrc_result_is_error(&res))
                     {
                         strncpy(status_message, changes_not_saved_status, sizeof(status_message));
                         break;
