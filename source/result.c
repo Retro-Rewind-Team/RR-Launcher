@@ -121,6 +121,22 @@ char *rrc_result_strerror(struct rrc_result *result)
         return "Update failed.";
     case ESOURCE_SD_CARD:
         return "SD card error.";
+    case ESOURCE_WIISOCKET_INIT:
+    {
+        switch (result->inner.wiisocket_init_code)
+        {
+        case -1:
+            return "Network initialisation already in progress.";
+        case -2:
+            return "Failed to initialise library.";
+        case -3:
+            return "Failed to initialise network.";
+        case -4:
+            return "Failed to register hardware in devoptab.";
+        default:
+            return "Unknown error code.";
+        }
+    }
     default:
         return NULL;
     }

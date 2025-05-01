@@ -25,6 +25,7 @@
 #include <gctypes.h>
 #include <zip.h>
 #include <errno.h>
+#include <wiisocket.h>
 
 #include "versionsfile.h"
 #include "update.h"
@@ -171,7 +172,6 @@ CURLcode _rrc_update_get_zip_size(char *url, curl_off_t *size)
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
         curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_update_writefunction_empty);
         cres = curl_easy_perform(curl);
         if (cres != CURLE_OK)
@@ -206,7 +206,6 @@ struct rrc_result rrc_update_download_zip(char *url, char *filename, int current
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &numinfo);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, _rrc_zipdl_progress_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _rrc_zipdl_write_data_callback);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, RRC_CURL_TIMEOUT_MS);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
 
         /* Perform the request, cres gets the return code */
@@ -468,6 +467,18 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
 {
     rrc_con_clear(true);
 
+    rrc_con_update("Prepare Network", 0);
+    int res = wiisocket_init();
+    if (res < 0)
+    {
+        struct rrc_result r = {
+            .context = "Failed to connect to the internet. Please check your connection and internet settings.",
+            .errtype = ESOURCE_UPDATE_MISC,
+            .inner = {.wiisocket_init_code = res}};
+
+        return r;
+    }
+
     *updates_installed = false;
     char *versionsfile = NULL;
     char *deleted_versionsfile = NULL;
@@ -475,8 +486,8 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
     struct rrc_versionsfile_deleted_file *deleted_files = NULL;
     char **zip_urls = NULL;
     int *update_versions = NULL;
-    int res = rrc_versionsfile_get_versionsfile(&versionsfile);
-    rrc_con_update("Get Versions", 0);
+    rrc_con_update("Get Versions", 10);
+    res = rrc_versionsfile_get_versionsfile(&versionsfile);
     if (res < 0)
     {
         return rrc_result_create_error_curl(-res, "Failed to get version information.");
@@ -488,6 +499,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
     RRC_ASSERT(current >= 0, "failed to read current version file");
     rrc_dbg_printf("Current version: %i\n", current);
 
+    rrc_con_update("Get Download URLs", 20);
     TRY(rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, count, &zip_urls, &update_versions));
 
     if (*count > 0)
@@ -501,6 +513,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
         }
     }
 
+    rrc_con_update("Get Files to Remove", 30);
     res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
     if (res < 0)
     {
@@ -521,6 +534,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
             .num_deleted_files = num_deleted_files,
             .deleted_files = deleted_files};
 
+    rrc_con_update("Check Update Size", 40);
     curl_off_t updates_size;
     int is_large = rrc_update_is_large(&state, &updates_size);
     RRC_ASSERT(is_large >= 0, "failed to get update size");

@@ -42,7 +42,9 @@ enum rrc_result_error_source
     ESOURCE_UPDATE_MISC,
     ESOURCE_CORRUPTED_VERSIONFILE,
     /* Misc SD card errors: locked, not inserted etc. */
-    ESOURCE_SD_CARD
+    ESOURCE_SD_CARD,
+    /* Failure to initialise network */
+    ESOURCE_WIISOCKET_INIT
 };
 
 /* Because each library uses their own set of error codes, we need to support all
@@ -55,6 +57,8 @@ union rrc_result_error_inner
     int errnocode;
     /* defined for ZIP errors */
     int ziperr;
+    /* code returned by wiisocket_init */
+    int wiisocket_init_code;
 };
 
 #define TRY(x)                         \

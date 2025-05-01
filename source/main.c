@@ -22,7 +22,6 @@
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 #include <unistd.h>
-#include <wiisocket.h>
 #include <ogc/wiilaunch.h>
 #include <string.h>
 #include <fat.h>
@@ -118,11 +117,7 @@ int main(int argc, char **argv)
     rrc_dbg_printf("FST offset: %d\n", data_header->fst_offset << 2);
     rrc_dbg_printf("FST size: %d\n", data_header->fst_size << 2);
 
-    rrc_con_update("Await Network", 20);
-
-    res = wiisocket_init();
-    RRC_ASSERTEQ(res, 0, "wiisocket_init");
-
+    rrc_con_update("Load settings", 20);
     struct rrc_settingsfile stored_settings;
     struct rrc_result settingsfile_res = rrc_settingsfile_parse(&stored_settings);
     if (rrc_result_is_error(&settingsfile_res))
@@ -157,6 +152,7 @@ int main(int argc, char **argv)
     // Check for updates if the user enabled that setting.
     if (stored_settings.auto_update)
     {
+
         int update_count;
         bool any_updates;
         struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &any_updates);
