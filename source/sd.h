@@ -1,5 +1,5 @@
 /*
-    settings.h - header for the settings menu
+    sd.h - SD card helper and initialisation routine headers
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,25 +17,20 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef RRC_SETTINGS_H
-#define RRC_SETTINGS_H
+#ifndef RRC_SD_H
+#define RRC_SD_H
 
-#include "settingsfile.h"
 #include "result.h"
 
-enum rrc_settings_result
-{
-    RRC_SETTINGS_ERROR = -1,
-    RRC_SETTINGS_LAUNCH = 0,
-    RRC_SETTINGS_EXIT = 1
-};
+#define RRC_SD_TEST_FILE ".sdtest"
 
-// TODO: move xfb to some kind of global descriptor
 /*
-    Displays settings and returns the selected option to perform after closing.
+    Initialises and tests the SD card slot.
 
-    Note that if `result' is an error type, the return value is RRC_SETTINGS_ERROR.
+    If the SD card is inserted and unlocked, this function returns successfully.
+    Otherwise, an error is returned. This error can either be treated as fatal or
+    prompt the user to retry inserting with an unlocked SD card.
 */
-enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result);
+struct rrc_result rrc_sd_init();
 
 #endif
