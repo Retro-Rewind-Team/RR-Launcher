@@ -44,7 +44,8 @@ enum rrc_result_error_source
     /* Misc SD card errors: locked, not inserted etc. */
     ESOURCE_SD_CARD,
     /* Failure to initialise network */
-    ESOURCE_WIISOCKET_INIT
+    ESOURCE_WIISOCKET_INIT,
+    ESOURCE_CORRUPTED_RR_XML
 };
 
 /* Because each library uses their own set of error codes, we need to support all

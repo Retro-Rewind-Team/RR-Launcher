@@ -185,7 +185,11 @@ int main(int argc, char **argv)
 
         if (wiipressed & RRC_WPAD_B_MASK || gcpressed & PAD_BUTTON_B)
         {
-            switch (rrc_settings_display(xfb, &stored_settings))
+            struct rrc_result r;
+            int out = rrc_settings_display(xfb, &stored_settings, &r);
+            rrc_result_error_check_error_fatal(&r);
+
+            switch (out)
             {
             case RRC_SETTINGS_LAUNCH:
                 goto interrupt_loop_end;

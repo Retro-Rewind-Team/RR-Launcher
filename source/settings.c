@@ -1,5 +1,5 @@
 /*
-    settings.h - the settings menu implementation when auto-launch is interrupted by pressing +
+    settings.c - the settings menu implementation when auto-launch is interrupted
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -77,13 +77,19 @@ static char *changes_saved_status = RRC_CON_ANSI_FG_GREEN "Changes saved." RRC_C
 static char *changes_not_saved_status = RRC_CON_ANSI_BG_BRIGHT_RED "Error saving changes." RRC_CON_ANSI_CLR;
 static char *exit_label = "Exit";
 
-static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
+static struct rrc_result xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
 {
     mxml_node_t *option_node = mxmlFindElement(node, top, "option", "name", name, MXML_DESCEND);
-    RRC_ASSERT(option_node != NULL, "malformed RetroRewind6.xml: missing option in xml");
+    if (option_node == NULL)
+    {
+        return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: missing option in xml");
+    }
 
     mxml_index_t *index = mxmlIndexNew(option_node, "choice", "name");
-    RRC_ASSERT(index != NULL, "failed to create index");
+    if (index == NULL)
+    {
+        return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: failed to create index");
+    }
 
     int count = mxmlIndexGetCount(index);
     const char **out = malloc(sizeof(char *) * (count + 1 /* + implicit 'disabled' */));
@@ -94,9 +100,14 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     while ((choice = mxmlIndexEnum(index)) != NULL)
     {
         const char *choice_s = mxmlElementGetAttr(choice, "name");
-        RRC_ASSERT(choice_s != NULL, "malformed RetroRewind6.xml: choice has no name attribute");
-
-        RRC_ASSERT(i < count + 1, "index has more elements than choices");
+        if (choice_s == NULL)
+        {
+            return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: choice has no name attribute");
+        }
+        else if (i < count + 1)
+        {
+            return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: index has more elements than choices");
+        }
         out[i++] = choice_s;
     }
 
@@ -128,13 +139,16 @@ static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *
     mxmlDelete(xml_top);    \
     fclose(xml_file);
 
-enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings)
+enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result)
 {
     // Read the XML to extract all possible options for the entries.
     FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
     if (!xml_file)
     {
-        RRC_FATAL("failed to open RetroRewind6.xml file: %d", errno);
+        result->errtype = ESOURCE_CORRUPTED_RR_XML;
+        result->inner.errnocode = errno;
+        result->context = "Failed to open RetroRewind6/xml/RetroRewind6.xml";
+        return RRC_SETTINGS_ERROR;
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);
 
@@ -146,9 +160,33 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     const char *autoupdate_options[] = {"Disabled", "Enabled"};
     int autoupdate_option_count = sizeof(autoupdate_options) / sizeof(char *);
 
-    xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
-    xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
-    xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
+    struct rrc_result r;
+    r = xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
+
+    r = xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
+
+    r = xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
 
     // Begin initializing the settings UI.
     rrc_con_clear(true);

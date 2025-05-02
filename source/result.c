@@ -137,6 +137,8 @@ char *rrc_result_strerror(struct rrc_result *result)
             return "Unknown error code.";
         }
     }
+    case ESOURCE_CORRUPTED_RR_XML:
+        return "Invalid or corrupted RetroRewind6.xml.";
     default:
         return NULL;
     }
