@@ -24,7 +24,7 @@
 
 struct rrc_result rrc_sd_init()
 {
-    if (fatInitDefault() != true)
+    if (!fatInitDefault())
     {
         struct rrc_result sdfail = {
             .errtype = ESOURCE_SD_CARD,
@@ -37,7 +37,7 @@ struct rrc_result rrc_sd_init()
 
     if (chdir("sd:/") == -1)
     {
-        return rrc_result_create_error_errno(errno, "Failed to calibrate SD card root");
+        return rrc_result_create_error_errno(errno, "Failed to set SD card root");
     }
 
     FILE *file = fopen(RRC_SD_TEST_FILE, "w");

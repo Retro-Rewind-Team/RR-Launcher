@@ -104,7 +104,7 @@ static struct rrc_result xml_find_option_choices(mxml_node_t *node, mxml_node_t 
         {
             return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: choice has no name attribute");
         }
-        else if (i < count + 1)
+        else if (i >= count + 1)
         {
             return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: index has more elements than choices");
         }
