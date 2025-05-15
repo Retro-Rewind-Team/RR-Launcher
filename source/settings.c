@@ -120,6 +120,8 @@ static struct rrc_result xml_find_option_choices(mxml_node_t *node, mxml_node_t 
     {
         *saved_value = RRC_SETTINGSFILE_DEFAULT;
     }
+
+    return rrc_result_success;
 }
 
 static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *entries, int entry_count)
