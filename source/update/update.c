@@ -25,6 +25,7 @@
 #include <gctypes.h>
 #include <zip.h>
 #include <errno.h>
+#include <wiisocket.h>
 
 #include "versionsfile.h"
 #include "update.h"
@@ -40,7 +41,7 @@ struct rrc_result rrc_update_get_current_version(int *version)
     FILE *file = fopen(RRC_VERSIONFILE, "r");
     if (file == NULL)
     {
-        return rrc_result_create_error_errno(errno, "Failed to open version file for reading");
+        return rrc_result_create_error_errno(errno, "Failed to open version file " RRC_VERSIONFILE " for reading");
     }
 
     int fd = fileno(file);
@@ -466,6 +467,18 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
 {
     rrc_con_clear(true);
 
+    rrc_con_update("Prepare Network", 0);
+    int res = wiisocket_init();
+    if (res < 0)
+    {
+        struct rrc_result r = {
+            .context = "Failed to connect to the internet. Please check your connection and internet settings.",
+            .errtype = ESOURCE_UPDATE_MISC,
+            .inner = {.wiisocket_init_code = res}};
+
+        return r;
+    }
+
     *updates_installed = false;
     char *versionsfile = NULL;
     char *deleted_versionsfile = NULL;
@@ -473,17 +486,20 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
     struct rrc_versionsfile_deleted_file *deleted_files = NULL;
     char **zip_urls = NULL;
     int *update_versions = NULL;
-    int res = rrc_versionsfile_get_versionsfile(&versionsfile);
-    rrc_con_update("Get Versions", 0);
+    rrc_con_update("Get Versions", 10);
+    res = rrc_versionsfile_get_versionsfile(&versionsfile);
     if (res < 0)
     {
-        RRC_FATAL("couldnt get version file! res: %i\n", res);
+        return rrc_result_create_error_curl(-res, "Failed to get version information.");
     }
+
     int current;
     TRY(rrc_update_get_current_version(&current));
+
     RRC_ASSERT(current >= 0, "failed to read current version file");
     rrc_dbg_printf("Current version: %i\n", current);
 
+    rrc_con_update("Get Download URLs", 20);
     TRY(rrc_versionsfile_get_necessary_urls_and_versions(versionsfile, current, count, &zip_urls, &update_versions));
 
     if (*count > 0)
@@ -497,6 +513,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
         }
     }
 
+    rrc_con_update("Get Files to Remove", 30);
     res = rrc_versionsfile_get_removed_files(&deleted_versionsfile);
     if (res < 0)
     {
@@ -517,6 +534,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
             .num_deleted_files = num_deleted_files,
             .deleted_files = deleted_files};
 
+    rrc_con_update("Check Update Size", 40);
     curl_off_t updates_size;
     int is_large = rrc_update_is_large(&state, &updates_size);
     RRC_ASSERT(is_large >= 0, "failed to get update size");

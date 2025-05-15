@@ -119,6 +119,26 @@ char *rrc_result_strerror(struct rrc_result *result)
         return "Corrupted version file detected.";
     case ESOURCE_UPDATE_MISC:
         return "Update failed.";
+    case ESOURCE_SD_CARD:
+        return "SD card error.";
+    case ESOURCE_WIISOCKET_INIT:
+    {
+        switch (result->inner.wiisocket_init_code)
+        {
+        case -1:
+            return "Network initialisation already in progress.";
+        case -2:
+            return "Failed to initialise library.";
+        case -3:
+            return "Failed to initialise network.";
+        case -4:
+            return "Failed to register hardware in devoptab.";
+        default:
+            return "Unknown error code.";
+        }
+    }
+    case ESOURCE_CORRUPTED_RR_XML:
+        return "Invalid or corrupted RetroRewind6.xml.";
     default:
         return NULL;
     }
@@ -138,11 +158,12 @@ void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb)
 
     char *lines[] = {
         line1,
+        "",
         "Additional info:",
         (char *)result->context,
     };
 
-    rrc_prompt_1_option(xfb, lines, 3, "OK");
+    rrc_prompt_1_option(xfb, lines, 4, "OK");
 }
 
 void rrc_result_error_check_error_fatal(struct rrc_result *result)

@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "../console.h"
+#include "../util.h"
 #include "versionsfile.h"
 
 #define _RRC_VERSIONSFILE_URL "http://update.rwfc.net:8000/RetroRewind/RetroRewindVersion.txt"
@@ -150,8 +151,6 @@ int rrc_versionsfile_get_versionsfile(char **result)
         if (res != CURLE_OK)
         {
             // TODO: report error better
-            printf("curl_easy_perform() failed: %s\n",
-                   curl_easy_strerror(res));
             return -res;
         }
 
