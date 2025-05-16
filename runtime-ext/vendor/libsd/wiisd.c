@@ -36,7 +36,6 @@
 #include <io/disc_io.h>
 #include <io/libsd.h>
 #include <rvl/ipc.h>
-#include <rvl/vi.h>
 #include <stdint.h>
 #include <string.h>
 #include <string.h>
@@ -118,6 +117,8 @@
 #define STACK_ALIGN(type, name, cnt, alignment)		uint8_t _al__##name[((sizeof(type)*(cnt)) + (alignment) + (((sizeof(type)*(cnt))%(alignment)) > 0 ? ((alignment) - ((sizeof(type)*(cnt))%(alignment))) : 0))]; \
 													type *name = (type*)(((uint32_t)(_al__##name)) + ((alignment) - (((uint32_t)(_al__##name))&((alignment)-1))))
 
+													
+void msleep(int ms);
 
 static uint8_t *rw_buffer = NULL;
 
@@ -273,7 +274,7 @@ static int __sdio_waithcr(uint8_t reg, uint8_t size, uint8_t unset, uint32_t mas
 		ret = __sdio_gethcr(reg, size, &val);
 		if(ret < 0) return ret;
 		if((unset && !(val & mask)) || (!unset && (val & mask))) return 0;
-		VIWaitForRetrace(); /* delay a bit */
+		msleep(10); /* delay a bit */
 	}
 
 	return -1;
@@ -449,7 +450,7 @@ static	bool __sd0_initio()
 			if(ret < 0) goto fail;
 			if(resp.rsp_fields[0] & (1 << 31)) break;
 
-			VIWaitForRetrace(); /* delay a bit */
+			msleep(10); /* delay a bit */
 		}
 		if(tries < 0) goto fail;
 
