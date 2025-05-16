@@ -93,6 +93,16 @@ struct rrc_result rrc_result_create_error_misc_update(const char *context)
     return res;
 }
 
+struct rrc_result rrc_result_create_error_corrupted_rr_xml(const char *context)
+{
+    struct rrc_result res;
+
+    res.errtype = ESOURCE_CORRUPTED_RR_XML;
+    res.context = context;
+
+    return res;
+}
+
 bool rrc_result_is_error(struct rrc_result *result)
 {
     return result != NULL && result->errtype != ESOURCE_NONE;

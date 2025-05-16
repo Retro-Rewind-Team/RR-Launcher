@@ -34,7 +34,8 @@
 #include "di.h"
 #include "time.h"
 #include "loader.h"
-#include "dol.h"
+#include "../shared/dol.h"
+#include "../shared/riivo.h"
 #include "console.h"
 #include "settings.h"
 #include "update/versionsfile.h"
@@ -52,7 +53,17 @@
 
 int main(int argc, char **argv)
 {
+    // There are bugs in pulsar with USB/HIDv5 if the IOS version is 59, which HBC commonly boots programs with.
+    // Use a version used by the game that is known to work with pulsar.
+    // FIXME: try to use the disk's IOS version?
+    RRC_ASSERTEQ(IOS_ReloadIOS(37), 0, "Failed to reload IOS");
+
+    // We reserve ~1MB of MEM1 upfront for the runtime-ext dol.
+    u32 mem1_hi = 0x81744260;
+    u32 mem2_hi = *(u32 *)0x80003128;
+
     s64 systime_start = gettime();
+
     // response codes for various library functions
     int res;
 
@@ -65,7 +76,8 @@ int main(int argc, char **argv)
     init_exception_handlers();
 
     // NOTE: We can't call any kind of printf before initialising libfat
-    struct rrc_result sdinit_res = rrc_sd_init();
+    char apps_cwd[256];
+    struct rrc_result sdinit_res = rrc_sd_init(apps_cwd, sizeof(apps_cwd));
     rrc_result_error_check_error_fatal(&sdinit_res);
 
     rrc_con_update("Initialise controllers", 0);
@@ -236,8 +248,6 @@ interrupt_loop_end:
 
     rrc_con_update("Initialise DVD: Read Filesystem Table", 50);
 
-    u32 mem1_hi = 0x81800000;
-    u32 mem2_hi = *(u32 *)0x80003128;
     rrc_dbg_printf("mem1 hi: %x, mem2 hi %x\n", mem1_hi, mem2_hi);
 
     u32 fst_size = data_header->fst_size << 2;
@@ -246,6 +256,7 @@ interrupt_loop_end:
     {
         RRC_FATAL("fst size too large");
     }
+
     mem1_hi = fst_dest;
     rrc_dbg_printf("FST at %x, size: %d, aligned: %d\n", fst_dest, fst_size, align_up(fst_size, 32));
     res = rrc_di_read((void *)fst_dest, align_up(fst_size, 32), data_header->fst_offset);
@@ -269,7 +280,11 @@ interrupt_loop_end:
     s64 systime_end = gettime();
     rrc_dbg_printf("time taken: %.3f seconds\n", ((f64)diff_msec(systime_start, systime_end)) / 1000.0);
 
-    rrc_loader_load(dol, bi2, mem1_hi, mem2_hi);
+    if (mem2_hi > 0x93400000)
+    {
+        mem2_hi = 0x93400000;
+    }
+    rrc_loader_load(dol, &stored_settings, apps_cwd, bi2, mem1_hi, mem2_hi);
 
     return 0;
 }

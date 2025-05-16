@@ -22,7 +22,7 @@
 
 #include "sd.h"
 
-struct rrc_result rrc_sd_init()
+struct rrc_result rrc_sd_init(char *old_cwd, int buf_size)
 {
     if (!fatInitDefault())
     {
@@ -33,6 +33,11 @@ struct rrc_result rrc_sd_init()
                 .errnocode = EIO}};
 
         return sdfail;
+    }
+
+    if (!getcwd(old_cwd, buf_size))
+    {
+        return rrc_result_create_error_errno(errno, "Failed to get current working directory");
     }
 
     if (chdir("sd:/") == -1)

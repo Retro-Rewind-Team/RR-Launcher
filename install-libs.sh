@@ -16,3 +16,10 @@ tar -xvf wii-mbedtls-3.6.2-2-any.pkg.tar.gz
 tar -xvf libwiisocket-0.1-1-any.pkg.tar.gz
 
 rsync -av --remove-source-files opt/devkitpro/ /opt/devkitpro/
+
+# brainslug
+git clone https://github.com/Chadderz121/brainslug-wii
+cd brainslug-wii
+make install
+cd ..
+rm -r brainslug-wii

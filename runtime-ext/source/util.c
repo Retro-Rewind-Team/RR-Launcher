@@ -1,5 +1,5 @@
 /*
-    sd.h - SD card helper and initialisation routine headers
+    util.c - Utility function implementations.
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,20 +17,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef RRC_SD_H
-#define RRC_SD_H
+#include <gctypes.h>
 
-#include "result.h"
+u32 align_down(u32 num, u32 align_as)
+{
+    return num & -align_as;
+}
 
-#define RRC_SD_TEST_FILE ".sdtest"
-
-/*
-    Initialises and tests the SD card slot.
-
-    If the SD card is inserted and unlocked, this function returns successfully.
-    Otherwise, an error is returned. This error can either be treated as fatal or
-    prompt the user to retry inserting with an unlocked SD card.
-*/
-struct rrc_result rrc_sd_init(char *old_cwd, int buf_size);
-
-#endif
+u32 align_up(u32 num, u32 align_as)
+{
+    return (num + align_as - 1) & -align_as;
+}
