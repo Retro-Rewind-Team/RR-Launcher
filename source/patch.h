@@ -21,8 +21,14 @@
 #define RRC_PATCH_H
 
 #include <gctypes.h>
-#include "dol.h"
+#include "../shared/dol.h"
+#include "../shared/riivo.h"
 
-void patch_dol(struct rrc_dol *dol, void (*dc_flush_range)(void *, u32));
+void patch_dol(
+    struct rrc_dol *dol,
+    struct rrc_riivo_memory_patch *mem_patches,
+    int mem_patch_count,
+    void (*ic_invalidate_range)(void *, u32),
+    void (*dc_flush_range)(void *, u32));
 
 #endif

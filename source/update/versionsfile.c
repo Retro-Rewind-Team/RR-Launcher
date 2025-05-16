@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "../console.h"
+#include "../util.h"
 #include "versionsfile.h"
 
 #define _RRC_VERSIONSFILE_URL "http://update.rwfc.net:8000/RetroRewind/RetroRewindVersion.txt"
@@ -30,7 +31,7 @@
 // max array size
 #define _RRC_SPLIT_LIM 4096
 
-int rrc_versionsfile_parse_verstring(char *verstring)
+struct rrc_result rrc_versionsfile_parse_verstring(char *verstring, int *version)
 {
     /* major, minor, revision */
     int parts[3] = {0, 0, 0};
@@ -43,8 +44,10 @@ int rrc_versionsfile_parse_verstring(char *verstring)
         {
             int sect_len = i - started_at;
             if (sect_len == 0)
+            {
                 /* ??? */
-                return -1;
+                return rrc_result_create_error_corrupted_versionfile("Invalid format");
+            }
 
             /* read this section */
             char section[sect_len + 1];
@@ -74,7 +77,8 @@ int rrc_versionsfile_parse_verstring(char *verstring)
     final += (parts[1] * 10);
     final += parts[2];
 
-    return final;
+    *version = final;
+    return rrc_result_success;
 }
 
 struct ptr_len_pair
@@ -147,8 +151,6 @@ int rrc_versionsfile_get_versionsfile(char **result)
         if (res != CURLE_OK)
         {
             // TODO: report error better
-            printf("curl_easy_perform() failed: %s\n",
-                   curl_easy_strerror(res));
             return -res;
         }
 
@@ -264,7 +266,7 @@ void rrc_versionsfile_free_split(char **array, int count)
     free(array);
 }
 
-int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *uamt, char ***urls, int **versions)
+struct rrc_result rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *uamt, char ***urls, int **versions)
 {
     /*
         We need to read the file line-wise and also space-wise.
@@ -285,15 +287,12 @@ int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int cur
     int res = rrc_versionsfile_split_by(versionsfile, '\n', &lines, &count);
     if (res < 0)
     {
-        // TODO: report these errors better
-        printf("failed to split versionfile: ret = %i\n", res);
-        return res;
+        return rrc_result_create_error_corrupted_versionfile("Failed to split versionfile");
     }
     else if (res == 2)
     {
-        printf("versionfile had greater than 4096 entries!!! corrupted file?\n");
         rrc_versionsfile_free_split(lines, count);
-        return -1;
+        return rrc_result_create_error_corrupted_versionfile("Versionfile had more than 4096 entries");
     }
 
     int update_idx = 0;
@@ -310,19 +309,17 @@ int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int cur
 
         if (res < 0)
         {
-            // TODO: report these errors better
-            printf("failed to split versionfile: ret = %i\n", res);
             rrc_versionsfile_free_split(lines, count);
-            return res;
+            return rrc_result_create_error_corrupted_versionfile("Failed to split versionfile");
         }
 
-        int verint = rrc_versionsfile_parse_verstring(parts[0]);
+        int verint;
+        struct rrc_result verstring_res = rrc_versionsfile_parse_verstring(parts[0], &verint);
 
-        if (verint == -1)
+        if (rrc_result_is_error(&verstring_res))
         {
             rrc_versionsfile_free_split(lines, count);
-            /* give this unique error code */
-            return -3;
+            return verstring_res;
         }
 
         if (verint > current_version)
@@ -348,10 +345,10 @@ int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int cur
     *uamt = update_idx;
 
     rrc_versionsfile_free_split(lines, count);
-    return 0;
+    return rrc_result_success;
 }
 
-int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt)
+struct rrc_result rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt)
 {
     *output = malloc(sizeof(struct rrc_versionsfile_deleted_file) * _RRC_SPLIT_LIM);
     int output_idx = 0;
@@ -361,15 +358,12 @@ int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struc
     int res = rrc_versionsfile_split_by(input, '\n', &lines, &count);
     if (res < 0)
     {
-        // TODO: report these errors better
-        printf("failed to split deleted versionfile: ret = %i\n", res);
-        return res;
+        return rrc_result_create_error_corrupted_versionfile("Failed to split deleted versionfile");
     }
     else if (res == 2)
     {
-        printf("delete versionfile had greater than 4096 entries!!! corrupted file?\n");
         rrc_versionsfile_free_split(lines, count);
-        return -1;
+        return rrc_result_create_error_corrupted_versionfile("Deleted versionfile had more than 4096 entries");
     }
 
     for (int i = 0; i < count; i++)
@@ -379,17 +373,16 @@ int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struc
         res = rrc_versionsfile_split_by(lines[i], ' ', &parts, &parts_count);
         if (res < 0)
         {
-            printf("failed to split deleted versionfile line: ret = %i\n", res);
-            return res;
+            return rrc_result_create_error_corrupted_versionfile("Failed to split deleted versionfile");
         }
 
-        int verint = rrc_versionsfile_parse_verstring(parts[0]);
+        int verint;
+        struct rrc_result verstring_res = rrc_versionsfile_parse_verstring(parts[0], &verint);
 
-        if (verint == -1)
+        if (rrc_result_is_error(&verstring_res))
         {
             rrc_versionsfile_free_split(lines, count);
-            /* give this unique error code */
-            return -3;
+            return verstring_res;
         }
 
         if (verint > current_version)
@@ -412,5 +405,5 @@ int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struc
 
     *amt = output_idx;
     rrc_versionsfile_free_split(lines, count);
-    return 0;
+    return rrc_result_success;
 }

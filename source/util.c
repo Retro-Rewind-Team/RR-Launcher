@@ -19,6 +19,8 @@
 
 #include <gctypes.h>
 #include <sys/statvfs.h>
+#include <gccore.h>
+#include "result.h"
 
 u32 align_down(u32 num, u32 align_as)
 {
@@ -30,14 +32,29 @@ u32 align_up(u32 num, u32 align_as)
     return (num + align_as - 1) & -align_as;
 }
 
-unsigned long sd_get_free_space()
+struct rrc_result sd_get_free_space(unsigned long *res)
 {
     struct statvfs sbx;
     int rr = statvfs("/dev/sd", &sbx);
     if (rr != 0)
     {
-        return -1;
+        return rrc_result_create_error_errno(errno, "Failed to get free space on SD card");
     }
 
-    return (unsigned long)(sbx.f_bavail * sbx.f_frsize);
+    *res = sbx.f_bavail * sbx.f_frsize;
+    return rrc_result_success;
+}
+
+void rrc_invalidate_cache(void *addr, u32 size)
+{
+    // Must be aligned to a 32 byte boundary.
+    addr = (void *)align_down((u32)addr, 32);
+
+    // Size must be a multiple of 32.
+    // We add 32 to the size so that in case the address was not aligned and we had to align down,
+    // we don't end up skipping the last cache line.
+    size = align_up(size + 32, 32);
+
+    DCFlushRange(addr, size);
+    ICInvalidateRange(addr, size);
 }

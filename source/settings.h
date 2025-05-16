@@ -21,15 +21,21 @@
 #define RRC_SETTINGS_H
 
 #include "settingsfile.h"
+#include "result.h"
 
 enum rrc_settings_result
 {
+    RRC_SETTINGS_ERROR = -1,
     RRC_SETTINGS_LAUNCH = 0,
     RRC_SETTINGS_EXIT = 1
 };
 
 // TODO: move xfb to some kind of global descriptor
+/*
+    Displays settings and returns the selected option to perform after closing.
 
-enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings);
+    Note that if `result' is an error type, the return value is RRC_SETTINGS_ERROR.
+*/
+enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result);
 
 #endif

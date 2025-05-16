@@ -66,4 +66,11 @@ enum rrc_prompt_result rrc_prompt_2_options(
     enum rrc_prompt_result option1_result,
     enum rrc_prompt_result option2_result);
 
+/* Basically just an info box that can be dismissed. `button' is the button text.
+   See `rrc_prompt_2_options' for a description of prompts. */
+void rrc_prompt_1_option(void *old_xfb,
+                         char **lines,
+                         int n,
+                         char *button);
+
 #endif

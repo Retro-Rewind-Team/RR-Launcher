@@ -40,6 +40,7 @@
 
 // We generally don't care if ccp A or wiimote A was pressed, so these macros allow checking for both at once.
 #define RRC_WPAD_A_MASK (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A)
+#define RRC_WPAD_B_MASK (WPAD_BUTTON_B | WPAD_CLASSIC_BUTTON_B)
 #define RRC_WPAD_HOME_MASK (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME)
 #define RRC_WPAD_PLUS_MASK (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS)
 #define RRC_WPAD_UP_MASK (WPAD_BUTTON_UP | WPAD_CLASSIC_BUTTON_UP)
@@ -48,7 +49,7 @@
 #define RRC_WPAD_LEFT_MASK (WPAD_BUTTON_LEFT | WPAD_CLASSIC_BUTTON_LEFT)
 
 #ifndef RRC_EXIT_DELAY
-#define RRC_EXIT_DELAY 1000000
+#define RRC_EXIT_DELAY 3000000
 #endif
 
 #define RRC_LWP_PRIO_IDLE 0
@@ -84,6 +85,8 @@
         }                                                                                    \
     } while (0);
 
+#define RRC_STRINGIFY(x) #x
+
 #if defined(DEBUG) && DEBUG >= 0
 /* define debug macros */
 
@@ -102,12 +105,17 @@
 
 #endif
 
+/**
+ * Invalidates any data caches for a given address range.
+ * This handles the pointer alignment and size-multiple requirements and does not need to be handled by callers.
+ */
+void rrc_invalidate_cache(void *addr, u32 size);
+
 u32 align_down(u32 num, u32 align_as);
 u32 align_up(u32 num, u32 align_as);
 /*
-    Returns amount of free space on sd card as bytes, or -1 on error.
-    Use errno to inspect errors.
+    Returns amount of free space on sd card as bytes.
 */
-unsigned long sd_get_free_space();
+struct rrc_result sd_get_free_space(unsigned long *res);
 
 #endif

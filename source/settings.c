@@ -1,5 +1,5 @@
 /*
-    settings.h - the settings menu implementation when auto-launch is interrupted by pressing +
+    settings.c - the settings menu implementation when auto-launch is interrupted
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -23,13 +23,14 @@
 #include "settingsfile.h"
 #include "update/update.h"
 #include "prompt.h"
+#include "../shared/riivo.h"
 #include <stdio.h>
 #include <string.h>
-#include <gctypes.h>
 #include <unistd.h>
 #include <wiiuse/wpad.h>
 #include <errno.h>
 #include <mxml.h>
+#include <gccore.h>
 
 enum settings_entry_type
 {
@@ -74,32 +75,49 @@ static char *savegame_label = "Separate savegame";
 static char *autoupdate_label = "Automatic updates";
 static char *perform_updates_label = "Perform updates";
 static char *changes_saved_status = RRC_CON_ANSI_FG_GREEN "Changes saved." RRC_CON_ANSI_CLR;
+static char *changes_not_saved_status = RRC_CON_ANSI_BG_BRIGHT_RED "Error saving changes." RRC_CON_ANSI_CLR;
 static char *exit_label = "Exit";
 
-static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
+static struct rrc_result xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const char *name, const char ***result_choice, int *result_choice_count, u32 *saved_value)
 {
     mxml_node_t *option_node = mxmlFindElement(node, top, "option", "name", name, MXML_DESCEND);
-    RRC_ASSERT(option_node != NULL, "malformed RetroRewind6.xml: missing option in xml");
+    if (option_node == NULL)
+    {
+        return rrc_result_create_error_corrupted_rr_xml("missing option in xml");
+    }
 
     mxml_index_t *index = mxmlIndexNew(option_node, "choice", "name");
-    RRC_ASSERT(index != NULL, "failed to create index");
+    if (index == NULL)
+    {
+        return rrc_result_create_error_corrupted_rr_xml("failed to create index");
+    }
 
     int count = mxmlIndexGetCount(index);
     const char **out = malloc(sizeof(char *) * (count + 1 /* + implicit 'disabled' */));
+    mxmlIndexDelete(index);
     out[0] = "Disabled";
 
-    mxml_node_t *choice;
     int i = 1;
-    while ((choice = mxmlIndexEnum(index)) != NULL)
+    // NOTE: the element order is important here as the settings uses indices, and mxml index sorts them by name, so we can't use the index here.
+    for (mxml_node_t *choice = mxmlFindElement(option_node, top, "choice", NULL, NULL, MXML_DESCEND_FIRST); choice != NULL; choice = mxmlGetNextSibling(choice))
     {
-        const char *choice_s = mxmlElementGetAttr(choice, "name");
-        RRC_ASSERT(choice_s != NULL, "malformed RetroRewind6.xml: choice has no name attribute");
+        if (mxmlGetType(choice) != MXML_ELEMENT)
+        {
+            continue;
+        }
 
-        RRC_ASSERT(i < count + 1, "index has more elements than choices");
+        const char *choice_s = mxmlElementGetAttr(choice, "name");
+        if (choice_s == NULL)
+        {
+            return rrc_result_create_error_corrupted_rr_xml("choice has no name attribute");
+        }
+        else if (i >= count + 1)
+        {
+            return rrc_result_create_error_corrupted_rr_xml("index has more elements than choices");
+        }
         out[i++] = choice_s;
     }
 
-    mxmlIndexDelete(index);
     *result_choice = out;
     *result_choice_count = i;
 
@@ -108,6 +126,8 @@ static void xml_find_option_choices(mxml_node_t *node, mxml_node_t *top, const c
     {
         *saved_value = RRC_SETTINGSFILE_DEFAULT;
     }
+
+    return rrc_result_success;
 }
 
 static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *entries, int entry_count)
@@ -127,13 +147,17 @@ static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *
     mxmlDelete(xml_top);    \
     fclose(xml_file);
 
-enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings)
+enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result)
 {
+    result->errtype = ESOURCE_NONE;
+
     // Read the XML to extract all possible options for the entries.
-    FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
+    FILE *xml_file = fopen(RRC_RIIVO_XML_PATH, "r");
     if (!xml_file)
     {
-        RRC_FATAL("failed to open RetroRewind6.xml file: %d", errno);
+        struct rrc_result r = rrc_result_create_error_errno(errno, "Failed to open " RRC_RIIVO_XML_PATH);
+        memcpy(result, &r, sizeof(struct rrc_result));
+        return RRC_SETTINGS_ERROR;
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);
 
@@ -145,9 +169,33 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     const char *autoupdate_options[] = {"Disabled", "Enabled"};
     int autoupdate_option_count = sizeof(autoupdate_options) / sizeof(char *);
 
-    xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
-    xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
-    xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
+    struct rrc_result r;
+    r = xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
+
+    r = xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
+
+    r = xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
+    if (rrc_result_is_error(&r))
+    {
+        result->context = r.context;
+        result->errtype = r.errtype;
+        result->inner = r.inner;
+        return RRC_SETTINGS_ERROR;
+    }
 
     // Begin initializing the settings UI.
     rrc_con_clear(true);
@@ -299,14 +347,17 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
         // because the current scene will remain "static" until a button is pressed
         while (1)
         {
+            PAD_ScanPads();
             WPAD_ScanPads();
-            int pressed = WPAD_ButtonsDown(0);
-            if (pressed & RRC_WPAD_HOME_MASK)
+            int wiipressed = WPAD_ButtonsDown(0);
+            int gcpressed = PAD_ButtonsDown(0);
+
+            if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_MENU)
             {
                 goto exit;
             }
 
-            if (pressed & RRC_WPAD_DOWN_MASK)
+            if (wiipressed & RRC_WPAD_DOWN_MASK || gcpressed & PAD_BUTTON_DOWN)
             {
                 if (selected_idx < entry_count - 1)
                 {
@@ -319,7 +370,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if (pressed & RRC_WPAD_UP_MASK)
+            if (wiipressed & RRC_WPAD_UP_MASK || gcpressed & PAD_BUTTON_UP)
             {
                 if (selected_idx > 0)
                 {
@@ -334,7 +385,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
             struct settings_entry *entry = &entries[selected_idx];
 
-            if ((pressed & RRC_WPAD_LEFT_MASK) && entry->type == ENTRY_TYPE_SELECT)
+            if ((wiipressed & RRC_WPAD_LEFT_MASK || gcpressed & PAD_BUTTON_LEFT) && entry->type == ENTRY_TYPE_SELECT)
             {
                 if (*entry->selected_option > 0)
                 {
@@ -348,7 +399,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if ((pressed & RRC_WPAD_RIGHT_MASK) && entry->type == ENTRY_TYPE_SELECT)
+            if ((wiipressed & RRC_WPAD_RIGHT_MASK || gcpressed & PAD_BUTTON_RIGHT) && entry->type == ENTRY_TYPE_SELECT)
             {
                 (*entry->selected_option)++;
 
@@ -360,20 +411,29 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 break;
             }
 
-            if (pressed & RRC_WPAD_A_MASK)
+            if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
             {
                 if (entry->label == launch_label)
                 {
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
-                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                        struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                        rrc_result_error_check_error_normal(&res, xfb);
                     }
 
                     goto launch;
                 }
                 else if (entry->label == save_label)
                 {
-                    RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                    struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                    rrc_result_error_check_error_normal(&res, xfb);
+
+                    if (rrc_result_is_error(&res))
+                    {
+                        strncpy(status_message, changes_not_saved_status, sizeof(status_message));
+                        break;
+                    }
+
                     for (int i = 0; i < entry_count; i++)
                     {
                         if (entries[i].type == ENTRY_TYPE_SELECT)
@@ -388,24 +448,35 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 else if (entry->label == perform_updates_label)
                 {
                     int update_count;
-                    bool updated = rrc_update_do_updates(xfb, &update_count);
-                    if (update_count == 0)
+                    bool updated;
+                    struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &updated);
+
+                    if (rrc_result_is_error(&update_res))
                     {
-                        strncpy(status_message, "No updates available.", sizeof(status_message));
+                        rrc_result_error_check_error_normal(&update_res, xfb);
                     }
-                    else if (updated)
+                    else
                     {
-                        snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
+                        if (update_count == 0)
+                        {
+                            strncpy(status_message, "No updates available.", sizeof(status_message));
+                        }
+                        else if (updated)
+                        {
+                            snprintf(status_message, sizeof(status_message), "%d updates installed.", update_count);
+                        }
                     }
 
                     rrc_con_clear(true);
+
                     break;
                 }
                 else if (entry->label == exit_label)
                 {
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
-                        RRC_ASSERTEQ(rrc_settingsfile_store(stored_settings), RRC_SETTINGSFILE_OK, "failed to save changes");
+                        struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                        rrc_result_error_check_error_normal(&res, xfb);
                     }
 
                     goto exit;
@@ -414,6 +485,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
             usleep(RRC_WPAD_LOOP_TIMEOUT);
         }
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
 
     goto launch;

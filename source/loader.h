@@ -20,8 +20,22 @@
 #ifndef RRC_LOADER_H
 #define RRC_LOADER_H
 
+#include "settingsfile.h"
+#include "../shared/dol.h"
+
 #define RRC_BI2_SIZE 0x2000
 #define RRC_PATCH_COPY_ADDRESS 0x80900000
+// Must be kept in sync with the .riivo_disc_ptr section address in runtime-ext's linker script
+#define RRC_RIIVO_DISC_PTR 0x81782fa0
+
+#define RRC_DVD_CONVERT_PATH_TO_ENTRYNUM 0x8015df4c
+#define RRC_DVD_FAST_OPEN 0x8015e254
+#define RRC_DVD_OPEN 0x8015e2bc
+#define RRC_DVD_READ_PRIO 0x8015e834
+#define RRC_DVD_CLOSE 0x8015e568
+
+#define RRC_LOADER_PUL_PATH "RetroRewind6/Binaries/Loader.pul"
+#define RRC_RUNTIME_EXT_REL_PATH "runtime-ext.dol"
 
 /*
  * Spins until Mario Kart Wii is inserted into the disc drive.
@@ -39,10 +53,8 @@ int rrc_loader_locate_data_part(u32 *part);
  * This routine applies all patches from code.pul as well as setting key memory addresses
  * appropriately before fully loading the DOL and launching Mario Kart Wii.
  *
- * TODO: For now, this does not apply patches, but we'll want to do that.
- * TODO: This routine should be resilient against things such as the SD card or disc being ejected.
  * This function should always return a status code on failure and NEVER CRASH. On success, it never returns.
  */
-void rrc_loader_load(void *dol, void *bi2_dest, u32 mem1_hi, u32 mem2_hi);
+void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, const char *apps_cwd, void *bi2_dest, u32 mem1_hi, u32 mem2_hi);
 
 #endif

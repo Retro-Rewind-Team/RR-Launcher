@@ -19,6 +19,8 @@
 #ifndef RRC_VERSIONSFILE_H
 #define RRC_VERSIONSFILE_H
 
+#include "../result.h"
+
 struct rrc_versionsfile_deleted_file
 {
     int version;
@@ -42,9 +44,8 @@ void rrc_versionsfile_free_split(char **array, int count);
 /*
     Returns an int specifying version information from a verstring.
     E.g., 4.2.0 = 420
-    Returns -1 on failure.
 */
-int rrc_versionsfile_parse_verstring(char *verstring);
+struct rrc_result rrc_versionsfile_parse_verstring(char *verstring, int *version);
 
 /*
     Get version information from Retro Rewind servers.
@@ -63,10 +64,9 @@ int rrc_versionsfile_get_removed_files(char **result);
 /*
     Get an array of all URLs we need to download, where the first index needs downloading first.
     On success, return code is 0 and `result' is populated with an array of strings and `count' is set to the amount of entries.
-    On failure, return code is a negative code, `result' is NULL, and `count' is 0.
 */
-int rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *count, char ***result, int **versions);
+struct rrc_result rrc_versionsfile_get_necessary_urls_and_versions(char *versionsfile, int current_version, int *count, char ***result, int **versions);
 
-int rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt);
+struct rrc_result rrc_versionsfile_parse_deleted_files(char *input, int current_version, struct rrc_versionsfile_deleted_file **output, int *amt);
 
 #endif

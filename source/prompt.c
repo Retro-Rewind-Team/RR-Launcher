@@ -119,19 +119,21 @@ enum rrc_prompt_result rrc_prompt_2_options(
 
     while (1)
     {
+        PAD_ScanPads();
         WPAD_ScanPads();
-        int pressed = WPAD_ButtonsDown(0);
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
 
-        if (pressed & WPAD_BUTTON_LEFT || pressed & WPAD_BUTTON_RIGHT)
+        if ((wiipressed & (WPAD_BUTTON_LEFT | WPAD_BUTTON_RIGHT)) || (gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)))
         {
             dir_pressed = 1;
             selected_option = (selected_option == option1_result ? option2_result : option1_result);
         }
-        else if (dir_pressed && !(pressed & RRC_WPAD_LEFT_MASK) && !(pressed & RRC_WPAD_RIGHT_MASK))
+        else if (dir_pressed && (!(wiipressed & (RRC_WPAD_LEFT_MASK | RRC_WPAD_RIGHT_MASK)) || !(gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))))
         {
             dir_pressed = 0;
         }
-        else if (pressed & RRC_WPAD_A_MASK)
+        else if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
         {
             break;
         }
@@ -150,6 +152,8 @@ enum rrc_prompt_result rrc_prompt_2_options(
         }
 
         prev_selected_option = selected_option;
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
     }
 
     rrc_gui_display_con(old_xfb, false);
@@ -164,4 +168,65 @@ enum rrc_prompt_result rrc_prompt_yes_no(void *old_xfb, char **lines, int n)
 enum rrc_prompt_result rrc_prompt_ok_cancel(void *old_xfb, char **lines, int n)
 {
     return rrc_prompt_2_options(old_xfb, lines, n, "OK", "Cancel", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
+}
+
+void rrc_prompt_1_option(void *old_xfb,
+                         char **lines,
+                         int n,
+                         char *button)
+{
+    _rrc_prompt_xfb_setup();
+
+    if (n >= _RRC_PROMPT_LINES_MAX)
+    {
+        rrc_gui_display_con(old_xfb, false);
+        return;
+    }
+
+    rrc_gui_display_con(prompt_xfb, true);
+    rrc_gui_display_banner(prompt_xfb);
+
+    rrc_con_display_splash();
+
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+
+    for (int i = 0; i < n; i++)
+    {
+        if (strlen(lines[i]) > cols)
+        {
+            rrc_gui_display_con(old_xfb, false);
+            return;
+        }
+
+        rrc_con_print_text_centered(_RRC_PROMPT_TEXT_FIRST_ROW + i, lines[i]);
+    }
+
+    char *arrow = RRC_CON_ANSI_FG_BRIGHT_WHITE ">> " RRC_CON_ANSI_FG_WHITE;
+    int rendered_arrow_len = 3;
+
+    int buttons_line = _RRC_PROMPT_TEXT_FIRST_ROW + n + _RRC_PROMPT_OPTIONS_PAD;
+    int buttons_col = rrc_con_centered_text_start_column(button);
+
+    rrc_con_print_text_centered(buttons_line, button);
+    rrc_con_cursor_seek_to(buttons_line, buttons_col - rendered_arrow_len);
+    printf(arrow);
+
+    // just wait for an A press lol
+    while (1)
+    {
+        WPAD_ScanPads();
+        PAD_ScanPads();
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
+        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
+        {
+            break;
+        }
+
+        usleep(RRC_WPAD_LOOP_TIMEOUT);
+    }
+
+    rrc_gui_display_con(old_xfb, false);
+    return;
 }

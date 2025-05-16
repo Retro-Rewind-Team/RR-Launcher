@@ -22,7 +22,6 @@
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 #include <unistd.h>
-#include <wiisocket.h>
 #include <ogc/wiilaunch.h>
 #include <string.h>
 #include <fat.h>
@@ -35,7 +34,8 @@
 #include "di.h"
 #include "time.h"
 #include "loader.h"
-#include "dol.h"
+#include "../shared/dol.h"
+#include "../shared/riivo.h"
 #include "console.h"
 #include "settings.h"
 #include "update/versionsfile.h"
@@ -44,22 +44,26 @@
 #include "gui.h"
 #include "res.h"
 #include "settingsfile.h"
+#include "result.h"
+#include "exception.h"
+#include "sd.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
 
-void *wiisocket_init_thread_callback(void *res)
-{
-    // Note: the void* given to us is an int* that lives in the main function,
-    // because we want to assert everything from the main thread rather than asserting in here
-    // so that we don't potentially exit(1) from another thread while the main thread is doing some important reading/patching.
-    *(int *)res = wiisocket_init();
-    return NULL;
-}
-
 int main(int argc, char **argv)
 {
+    // There are bugs in pulsar with USB/HIDv5 if the IOS version is 59, which HBC commonly boots programs with.
+    // Use a version used by the game that is known to work with pulsar.
+    // FIXME: try to use the disk's IOS version?
+    RRC_ASSERTEQ(IOS_ReloadIOS(37), 0, "Failed to reload IOS");
+
+    // We reserve ~1MB of MEM1 upfront for the runtime-ext dol.
+    u32 mem1_hi = 0x81744260;
+    u32 mem2_hi = *(u32 *)0x80003128;
+
     s64 systime_start = gettime();
+
     // response codes for various library functions
     int res;
 
@@ -69,31 +73,20 @@ int main(int argc, char **argv)
     rrc_gui_display_con(xfb, true);
     rrc_gui_display_banner(xfb);
 
-    rrc_dbg_printf("Initialising SD card");
-    RRC_ASSERTEQ(fatInitDefault(), true, "fatInitDefault()");
-    // force filesystem root
-    chdir("../../../../..");
+    init_exception_handlers();
+
+    // NOTE: We can't call any kind of printf before initialising libfat
+    char apps_cwd[256];
+    struct rrc_result sdinit_res = rrc_sd_init(apps_cwd, sizeof(apps_cwd));
+    rrc_result_error_check_error_fatal(&sdinit_res);
 
     rrc_con_update("Initialise controllers", 0);
-
-    rrc_dbg_printf("init controllers\n");
+    res = PAD_Init();
+    RRC_ASSERTEQ(res, 1, "PAD_Init");
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
-    rrc_con_update("Spawn background threads", 5);
-
-    // Initializing the network can take fairly long (seconds).
-    // It's not really needed right away anyway so we can do it on another thread in parallel to some of the disk reading
-    // and join on it later when we actually need it.
-    rrc_dbg_printf("spawn network init thread\n");
-    int wiisocket_res;
-    lwp_t wiisocket_thread;
-    res = LWP_CreateThread(&wiisocket_thread, wiisocket_init_thread_callback, &wiisocket_res, NULL, 0, RRC_LWP_PRIO_IDLE);
-    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_CreateThread for wiisocket init");
-
     rrc_con_update("Initialise DVD", 10);
-
-    rrc_dbg_printf("init disk drive\n");
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
 
@@ -104,23 +97,6 @@ int main(int argc, char **argv)
     {
         exit(0);
     }
-
-    /*  TODO: From this point in the full launcher we will set a timeout of, say, 2 seconds.
-        If some button such as A is pressed in that window, initialise the full channel.
-        Otherwise, just go ahead and load the game. This saves the user time because on
-        most occasions all you want to do is play and not do anything in the settings.
-
-        For now, we're just loading the game. However, we need to do this in stages instead
-        of in one big routine (like the WFC launcher). This is because while we're reading
-        all of the necessary sections from disc, we're still initalising the network and
-        fetching version information in the background thread. This thread will return
-        version information as read from the API's text file, so when we join that thread,
-        we compare those versions against our local version.txt and then ask the user if they
-        want to update (if necessary). This replaces files on the SD card, so once all that
-        is done, we can finally read patches from the SD, apply them, and load the game.
-        So, all disc reading can be done in advance up to the point we read patch information
-        from the SD.
-    */
 
     // We've identified the game. Now find the data partition, which will tell us where the DOL and FST is.
     // This first requires parsing the partition *groups*. Each partition group contains multiple partitions.
@@ -153,46 +129,79 @@ int main(int argc, char **argv)
     rrc_dbg_printf("FST offset: %d\n", data_header->fst_offset << 2);
     rrc_dbg_printf("FST size: %d\n", data_header->fst_size << 2);
 
-    rrc_con_update("Await Network", 20);
-
-    res = LWP_JoinThread(wiisocket_thread, NULL);
-    RRC_ASSERTEQ(res, RRC_LWP_OK, "LWP_JoinThread wiisocket init");
-    RRC_ASSERTEQ(wiisocket_res, 0, "wiisocket_init");
-
+    rrc_con_update("Load settings", 20);
     struct rrc_settingsfile stored_settings;
-    RRC_ASSERTEQ(rrc_settingsfile_parse(&stored_settings), RRC_SETTINGSFILE_OK, "failed to parse settingsfile");
+    struct rrc_result settingsfile_res = rrc_settingsfile_parse(&stored_settings);
+    if (rrc_result_is_error(&settingsfile_res))
+    {
+        char *lines[] = {
+            rrc_result_strerror(&settingsfile_res),
+            (char *)settingsfile_res.context,
+            "It may be possible to fix this by recreating the file.",
+            "Recreate now?",
+        };
+        enum rrc_prompt_result prompt_res = rrc_prompt_yes_no(xfb, lines, 4);
+
+        if (prompt_res == RRC_PROMPT_RESULT_YES)
+        {
+            settingsfile_res = rrc_settingsfile_create();
+            if (rrc_result_is_error(&settingsfile_res))
+            {
+                char *lines[] = {
+                    "Failed to recreate settings file.",
+                    rrc_result_strerror(&settingsfile_res),
+                    (char *)settingsfile_res.context,
+                    "Defaults will be used with no changes on the SD card.",
+                };
+                rrc_prompt_1_option(xfb, lines, 4, "OK");
+            }
+        }
+
+        // `rrc_settingsfile_parse()` always initializes the settingsfile, so even in case of an error here,
+        // it is initialized with defaults and we can continue with that.
+    }
 
     // Check for updates if the user enabled that setting.
     if (stored_settings.auto_update)
     {
+
         int update_count;
-        rrc_update_do_updates(xfb, &update_count);
+        bool any_updates;
+        struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &any_updates);
+        rrc_result_error_check_error_normal(&update_res, xfb);
     }
 
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
     rrc_con_clear(true);
 
-    rrc_con_print_text_centered(_RRC_ACTION_ROW, "Press A to launch, or press + to load settings.");
+    rrc_con_print_text_centered(_RRC_ACTION_ROW, "Press A to launch, or press B to load settings.");
     rrc_con_print_text_centered(_RRC_ACTION_ROW + 1, "Auto-launching in 3 seconds...");
 
     for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
     {
+        PAD_ScanPads();
         WPAD_ScanPads();
 
-        int pressed = WPAD_ButtonsDown(0);
-        if (pressed & RRC_WPAD_HOME_MASK)
+        int wiipressed = WPAD_ButtonsDown(0);
+        int gcpressed = PAD_ButtonsDown(0);
+
+        if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_START)
         {
             return 0;
         }
 
-        if (pressed & RRC_WPAD_A_MASK)
+        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
         {
             break;
         }
 
-        if (pressed & RRC_WPAD_PLUS_MASK)
+        if (wiipressed & RRC_WPAD_B_MASK || gcpressed & PAD_BUTTON_B)
         {
-            switch (rrc_settings_display(xfb, &stored_settings))
+            struct rrc_result r;
+            int out = rrc_settings_display(xfb, &stored_settings, &r);
+            rrc_result_error_check_error_fatal(&r);
+
+            switch (out)
             {
             case RRC_SETTINGS_LAUNCH:
                 goto interrupt_loop_end;
@@ -239,8 +248,6 @@ interrupt_loop_end:
 
     rrc_con_update("Initialise DVD: Read Filesystem Table", 50);
 
-    u32 mem1_hi = 0x81800000;
-    u32 mem2_hi = *(u32 *)0x80003128;
     rrc_dbg_printf("mem1 hi: %x, mem2 hi %x\n", mem1_hi, mem2_hi);
 
     u32 fst_size = data_header->fst_size << 2;
@@ -249,6 +256,7 @@ interrupt_loop_end:
     {
         RRC_FATAL("fst size too large");
     }
+
     mem1_hi = fst_dest;
     rrc_dbg_printf("FST at %x, size: %d, aligned: %d\n", fst_dest, fst_size, align_up(fst_size, 32));
     res = rrc_di_read((void *)fst_dest, align_up(fst_size, 32), data_header->fst_offset);
@@ -272,7 +280,11 @@ interrupt_loop_end:
     s64 systime_end = gettime();
     rrc_dbg_printf("time taken: %.3f seconds\n", ((f64)diff_msec(systime_start, systime_end)) / 1000.0);
 
-    rrc_loader_load(dol, bi2, mem1_hi, mem2_hi);
+    if (mem2_hi > 0x93400000)
+    {
+        mem2_hi = 0x93400000;
+    }
+    rrc_loader_load(dol, &stored_settings, apps_cwd, bi2, mem1_hi, mem2_hi);
 
     return 0;
 }
