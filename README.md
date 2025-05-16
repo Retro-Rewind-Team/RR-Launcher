@@ -22,7 +22,7 @@ The best way to understand this channel on a technical level is to read the sour
 In order to build this project, you need:
 
 - [DevkitPro](https://devkitpro.org/wiki/Getting_Started), specifically all packages in the `wii-dev` and `ppc-dev` groups.
-- Additional libraries: libcurl (the `install-libs.sh` script can install them for you)
+- Additional libraries: libcurl and brainslug (the `install-libs.sh` script can install them for you)
 
 This project uses a `Makefile` for building the project: running `make` in the root directory will build the project and produce a `RR-Launcher.dol` file.
 

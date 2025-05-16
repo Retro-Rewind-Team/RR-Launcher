@@ -23,6 +23,7 @@
 #include "settingsfile.h"
 #include "update/update.h"
 #include "prompt.h"
+#include "../shared/riivo.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -82,36 +83,41 @@ static struct rrc_result xml_find_option_choices(mxml_node_t *node, mxml_node_t 
     mxml_node_t *option_node = mxmlFindElement(node, top, "option", "name", name, MXML_DESCEND);
     if (option_node == NULL)
     {
-        return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: missing option in xml");
+        return rrc_result_create_error_corrupted_rr_xml("missing option in xml");
     }
 
     mxml_index_t *index = mxmlIndexNew(option_node, "choice", "name");
     if (index == NULL)
     {
-        return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: failed to create index");
+        return rrc_result_create_error_corrupted_rr_xml("failed to create index");
     }
 
     int count = mxmlIndexGetCount(index);
     const char **out = malloc(sizeof(char *) * (count + 1 /* + implicit 'disabled' */));
+    mxmlIndexDelete(index);
     out[0] = "Disabled";
 
-    mxml_node_t *choice;
     int i = 1;
-    while ((choice = mxmlIndexEnum(index)) != NULL)
+    // NOTE: the element order is important here as the settings uses indices, and mxml index sorts them by name, so we can't use the index here.
+    for (mxml_node_t *choice = mxmlFindElement(option_node, top, "choice", NULL, NULL, MXML_DESCEND_FIRST); choice != NULL; choice = mxmlGetNextSibling(choice))
     {
+        if (mxmlGetType(choice) != MXML_ELEMENT)
+        {
+            continue;
+        }
+
         const char *choice_s = mxmlElementGetAttr(choice, "name");
         if (choice_s == NULL)
         {
-            return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: choice has no name attribute");
+            return rrc_result_create_error_corrupted_rr_xml("choice has no name attribute");
         }
         else if (i >= count + 1)
         {
-            return rrc_result_create_error_errno(EIO, "malformed RetroRewind6.xml: index has more elements than choices");
+            return rrc_result_create_error_corrupted_rr_xml("index has more elements than choices");
         }
         out[i++] = choice_s;
     }
 
-    mxmlIndexDelete(index);
     *result_choice = out;
     *result_choice_count = i;
 
@@ -143,13 +149,14 @@ static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *
 
 enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result)
 {
+    result->errtype = ESOURCE_NONE;
+
     // Read the XML to extract all possible options for the entries.
-    FILE *xml_file = fopen("RetroRewind6/xml/RetroRewind6.xml", "r");
+    FILE *xml_file = fopen(RRC_RIIVO_XML_PATH, "r");
     if (!xml_file)
     {
-        result->errtype = ESOURCE_CORRUPTED_RR_XML;
-        result->inner.errnocode = errno;
-        result->context = "Failed to open RetroRewind6/xml/RetroRewind6.xml";
+        struct rrc_result r = rrc_result_create_error_errno(errno, "Failed to open " RRC_RIIVO_XML_PATH);
+        memcpy(result, &r, sizeof(struct rrc_result));
         return RRC_SETTINGS_ERROR;
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);

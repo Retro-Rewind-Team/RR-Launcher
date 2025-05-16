@@ -127,6 +127,8 @@ struct rrc_result rrc_result_create_error_corrupted_versionfile(const char *cont
 
 struct rrc_result rrc_result_create_error_misc_update(const char *context);
 
+struct rrc_result rrc_result_create_error_corrupted_rr_xml(const char *context);
+
 /* Returns true if this result is an error, false otherwise. */
 bool rrc_result_is_error(struct rrc_result *result);
 

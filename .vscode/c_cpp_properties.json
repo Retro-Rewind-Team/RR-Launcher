@@ -8,7 +8,8 @@
                 "/opt/devkitpro/libogc/include/**",
                 "/opt/devkitpro/portlibs/ppc/include",
                 "/opt/devkitpro/portlibs/wii/include",
-                "/opt/devkitpro/devkitPPC/powerpc-eabi/include"
+                "/opt/devkitpro/devkitPPC/powerpc-eabi/include",
+                "/opt/devkitpro/bslug/include",
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

@@ -19,6 +19,7 @@
 
 #include <gctypes.h>
 #include <sys/statvfs.h>
+#include <gccore.h>
 #include "result.h"
 
 u32 align_down(u32 num, u32 align_as)
@@ -42,4 +43,18 @@ struct rrc_result sd_get_free_space(unsigned long *res)
 
     *res = sbx.f_bavail * sbx.f_frsize;
     return rrc_result_success;
+}
+
+void rrc_invalidate_cache(void *addr, u32 size)
+{
+    // Must be aligned to a 32 byte boundary.
+    addr = (void *)align_down((u32)addr, 32);
+
+    // Size must be a multiple of 32.
+    // We add 32 to the size so that in case the address was not aligned and we had to align down,
+    // we don't end up skipping the last cache line.
+    size = align_up(size + 32, 32);
+
+    DCFlushRange(addr, size);
+    ICInvalidateRange(addr, size);
 }

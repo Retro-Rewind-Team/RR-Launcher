@@ -24,6 +24,7 @@
 
 #define RRC_SETTINGSFILE_DEFAULT 0            /* disabled */
 #define RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT 1 /* enabled */
+#define RRC_SETTINGSFILE_PACK_ENABLED_VALUE 1
 
 enum rrc_settingsfile_status
 {
