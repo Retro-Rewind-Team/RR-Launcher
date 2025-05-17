@@ -35,7 +35,7 @@
 #define RRC_DVD_CLOSE 0x8015e568
 
 #define RRC_LOADER_PUL_PATH "RetroRewind6/Binaries/Loader.pul"
-#define RRC_RUNTIME_EXT_REL_PATH "runtime-ext.dol"
+#define RRC_RUNTIME_EXT_PATH "RetroRewindChannel/runtime-ext.dol"
 
 /*
  * Spins until Mario Kart Wii is inserted into the disc drive.
@@ -55,6 +55,6 @@ int rrc_loader_locate_data_part(u32 *part);
  *
  * This function should always return a status code on failure and NEVER CRASH. On success, it never returns.
  */
-void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, const char *apps_cwd, void *bi2_dest, u32 mem1_hi, u32 mem2_hi);
+void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi);
 
 #endif

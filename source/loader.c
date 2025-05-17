@@ -488,26 +488,9 @@ static struct rrc_result load_pulsar_loader(struct rrc_dol *dol, void *real_load
     return rrc_result_success;
 }
 
-static struct rrc_result load_runtime_ext(const char *apps_cwd)
+static struct rrc_result load_runtime_ext()
 {
-    // Create the path relative to the cwd (sd:// on dolphin or apps folder through HBC).
-    char dol_path[PATH_MAX];
-    char *path_ptr = dol_path;
-    int cwd_len = strlen(apps_cwd);
-    RRC_ASSERT(cwd_len < PATH_MAX, "apps_cwd longer than PATH_MAX");
-
-    strncpy(path_ptr, apps_cwd, sizeof(dol_path));
-    path_ptr += cwd_len;
-
-    if (dol_path[cwd_len - 1] != '/')
-    {
-        // Add a trailing slash if it doesn't exist already.
-        dol_path[cwd_len] = '/';
-        path_ptr++;
-    }
-    strncpy(path_ptr, "runtime-ext.dol", sizeof(dol_path) - (path_ptr - dol_path));
-
-    FILE *patch_file = fopen(dol_path, "r");
+    FILE *patch_file = fopen(RRC_RUNTIME_EXT_PATH, "r");
     if (!patch_file)
     {
         return rrc_result_create_error_errno(errno, "Failed to open runtime-ext.dol");
@@ -579,13 +562,13 @@ asm("patch_dol_helper:\n"
     "mtctr 8\n"
     "bctrl\n");
 
-void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, const char *apps_cwd, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
+void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
 {
     struct rrc_result res;
 
     // runtime-ext needs to be loaded before parsing riivo patches, as it writes to a static.
     // All errors that happen here are fatal; we can't boot the game without knowing the patches or having the patched DVD functions.
-    res = load_runtime_ext(apps_cwd);
+    res = load_runtime_ext();
     rrc_result_error_check_error_fatal(&res);
 
     struct parse_riivo_output riivo_out;
@@ -600,18 +583,18 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, con
 
     // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
 
-    *(u32 *)0xCD006C00 = 0x00000000;           // Reset `AI_CONTROL` to fix audio
-    *(u32 *)0x80000034 = 0;                    // Arena High
-    *(u32 *)0x800000EC = 0x81800000;           // Dev Debugger Monitor Address
-    *(u32 *)0x800000F0 = 0x01800000;           // Simulated Memory Size
-    *(u32 *)0x800000F4 = (u32)bi2_dest;        // Pointer to bi2
-    *(u32 *)0x800000F8 = 0x0E7BE2C0;           // Console Bus Speed
-    *(u32 *)0x800000FC = 0x2B73A840;           // Console CPU Speed
-    *(u32 *)0x80003110 = mem1_hi;              // MEM1 Arena End
-    *(u32 *)0x80003124 = 0x90000800;           // Usable MEM2 Start
-    *(u32 *)0x80003128 = mem2_hi;              // Usable MEM2 End
-    *(u32 *)0x80003180 = *(u32 *)(0x80000000); // Game ID
-    *(u32 *)0x80003188 = *(u32 *)(0x80003140); // Minimum IOS Version
+    *(u32 *)0xCD006C00 = 0x00000000;              // Reset `AI_CONTROL` to fix audio
+    *(u32 *)0x80000034 = 0;                       // Arena High
+    *(u32 *)0x800000EC = 0x81800000;              // Dev Debugger Monitor Address
+    *(u32 *)0x800000F0 = 0x01800000;              // Simulated Memory Size
+    *(u32 *)0x800000F4 = (u32)bi2_dest;           // Pointer to bi2
+    *(u32 *)0x800000F8 = 0x0E7BE2C0;              // Console Bus Speed
+    *(u32 *)0x800000FC = 0x2B73A840;              // Console CPU Speed
+    *(u32 *)0x80003110 = align_down(mem1_hi, 32); // MEM1 Arena End
+    *(u32 *)0x80003124 = 0x90000800;              // Usable MEM2 Start
+    *(u32 *)0x80003128 = align_down(mem2_hi, 32); // Usable MEM2 End
+    *(u32 *)0x80003180 = *(u32 *)(0x80000000);    // Game ID
+    *(u32 *)0x80003188 = *(u32 *)(0x80003140);    // Minimum IOS Version
 
     memcpy((u32 *)0x80000000, "RMCP01", 6);
     DCFlushRange((u32 *)0x80000000, 32);

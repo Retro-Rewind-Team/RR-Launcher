@@ -43,7 +43,7 @@
 #include "settingsfile.h"
 #include "util.h"
 
-#define RRC_SETTINGSFILE_PATH "RetroRewind6/.settings"
+#define RRC_SETTINGSFILE_PATH "RetroRewindChannel/.settings"
 #define RRC_SETTINGSFILE_MY_STUFF_KEY "My Stuff"
 #define RRC_SETTINGSFILE_LANGUAGE_KEY "Language"
 #define RRC_SETTINGSFILE_SAVEGAME_KEY "Separate savegame"
