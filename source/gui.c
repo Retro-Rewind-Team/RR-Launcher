@@ -147,35 +147,5 @@ void _rrc_gui_set_mm_video_mode(int mode)
 
 GXRModeObj *rrc_gui_get_video_mode()
 {
-    int confvideo = CONF_GetVideo();
-    bool isprogressive = CONF_GetProgressiveScan() == true;
-    bool havecomponent = VIDEO_HaveComponentCable() == true;
-    bool iseurgb60 = CONF_GetEuRGB60() == true;
-    GXRModeObj *rmode;
-
-    if (confvideo == CONF_VIDEO_PAL)
-    {
-        if (isprogressive && havecomponent)
-        {
-            rmode = &TVEurgb60Hz480Prog;
-            _rrc_gui_set_mm_video_mode(VI_EURGB60);
-        }
-        else if (iseurgb60)
-        {
-            rmode = &TVEurgb60Hz480IntDf;
-            _rrc_gui_set_mm_video_mode(VI_EURGB60);
-        }
-        else
-        {
-            rmode = &TVPal528IntDf;
-            _rrc_gui_set_mm_video_mode(VI_PAL);
-        }
-    }
-    else
-    {
-        rmode = (isprogressive && havecomponent ? &TVNtsc480Prog : &TVNtsc480IntDf);
-        _rrc_gui_set_mm_video_mode(confvideo == CONF_VIDEO_NTSC ?  VI_NTSC : VI_MPAL);
-    }
-
-    return rmode;
+    return VIDEO_GetPreferredMode(NULL);
 }
