@@ -116,12 +116,14 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 
 #---------------------------------------------------------------------------------
 $(BUILD):
+	make --no-print-directory -C runtime-ext
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
+	make --no-print-directory -C runtime-ext clean
 	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol patch.o
 #---------------------------------------------------------------------------------
 run:
