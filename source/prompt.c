@@ -37,14 +37,14 @@ static void *prompt_xfb = NULL;
 
 void _rrc_prompt_alloc_xfb()
 {
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    GXRModeObj *rmode = rrc_gui_get_video_mode();
     prompt_xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
     CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 
 void _rrc_prompt_reinit_xfb()
 {
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    GXRModeObj *rmode = rrc_gui_get_video_mode();
     CON_Init(prompt_xfb, 0, 0, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
 }
 

@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wiiuse/wpad.h>
+#include <ogc/conf.h>
 
 #include "prompt.h"
 #include "patch.h"
@@ -579,7 +580,19 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     res = load_pulsar_loader(dol, riivo_out.loader_pul_dest);
     rrc_result_error_check_error_fatal(&res);
 
-    rrc_con_update("Prepare For Patching: Patch Memory Map", 65);
+    rrc_con_update("Patch and Launch Game", 75);
+
+    wiisocket_deinit();
+
+    __IOS_ShutdownSubsystems();
+    for (u32 i = 0; i < 32; i++)
+    {
+        IOS_Close(i);
+    }
+
+    IRQ_Disable();
+
+    SYS_ResetSystem(SYS_SHUTDOWN, 0, 0);
 
     // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
 
@@ -612,10 +625,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     ICInvalidateRange((void *)0x80000000, 0x3400);
     DCFlushRange((void *)0x80000000, 0x01800000);
 
-    rrc_con_update("Patch and Launch Game", 75);
-
-    wiisocket_deinit();
-
     // The last step is to copy the sections from the safe space to where they actually need to be.
     // This requires copying the function itself to the safe address space so we don't overwrite ourselves.
     // It also needs to call `DCFlushRange` but cannot reference it in the function, so we copy it and pass it as a function pointer.
@@ -636,14 +645,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     memcpy(dc_flush_range, DCFlushRange, 64);
     DCFlushRange(dc_flush_range, 64);
     ICInvalidateRange(dc_flush_range, 64);
-
-    __IOS_ShutdownSubsystems();
-    for (u32 i = 0; i < 32; i++)
-    {
-        IOS_Close(i);
-    }
-
-    IRQ_Disable();
 
     patch_dol_helper(
         dol,
