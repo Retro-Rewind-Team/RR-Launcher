@@ -17,10 +17,10 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gccore.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "gui.h"
 #include "pngu/pngu.h"
 #include "util.h"
 
@@ -36,7 +36,7 @@ void rrc_gui_xfb_alloc(void **xfb, bool sys_stdio_report)
 
     // Obtain the preferred video mode from the system
     // This will correspond to the settings in the Wii menu
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    GXRModeObj *rmode = rrc_gui_get_video_mode();
     // Allocate memory for the display in the uncached region
     *xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
 
@@ -47,7 +47,7 @@ void rrc_gui_xfb_alloc(void **xfb, bool sys_stdio_report)
 
 void rrc_gui_display_con(void *xfb, bool clear_console)
 {
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    GXRModeObj *rmode = rrc_gui_get_video_mode();
 
     // Set up the video registers with the chosen mode
     VIDEO_Configure(rmode);
@@ -55,6 +55,7 @@ void rrc_gui_display_con(void *xfb, bool clear_console)
     VIDEO_SetNextFramebuffer(xfb);
     // Make the display visible
     VIDEO_SetBlack(false);
+    VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
     // Flush the video register changes to the hardware
     VIDEO_Flush();
     // Wait for Video setup to complete
@@ -132,7 +133,19 @@ out:
 
 int rrc_gui_display_banner(void *xfb)
 {
-    GXRModeObj *rmode = VIDEO_GetPreferredMode(NULL);
+    GXRModeObj *rmode = rrc_gui_get_video_mode();
     extern char banner4_3[];
     return _rrc_gui_draw_banner(xfb, banner4_3, rmode);
+}
+
+/* set video mode in appropriate memory map value */
+void _rrc_gui_set_mm_video_mode(int mode)
+{
+    *((u32 *)0x800000CC) = mode;
+    rrc_invalidate_cache((void *)0x800000CC, 1);
+}
+
+GXRModeObj *rrc_gui_get_video_mode()
+{
+    return VIDEO_GetPreferredMode(NULL);
 }

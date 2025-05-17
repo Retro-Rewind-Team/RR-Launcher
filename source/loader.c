@@ -15,12 +15,34 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    `rrc_loader_video_fix' uses code adapted from Brainslug:
+    Copyright (C) 2014, Alex Chadwick
+ 
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+    
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+    
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 */
 
 #include <gccore.h>
 #include <stdio.h>
 #include <string.h>
 #include <wiiuse/wpad.h>
+#include <ogc/conf.h>
 
 #include "prompt.h"
 #include "patch.h"
@@ -562,6 +584,66 @@ asm("patch_dol_helper:\n"
     "mtctr 8\n"
     "bctrl\n");
 
+
+/*
+    Set a video mode that will load properly.
+
+    This code is part of Brainslug, adapted for this channel.
+    See copyright notice at the start of this file.
+
+    https://github.com/Chadderz121/brainslug-wii/blob/8ca49384452dcb7d41e90d002ba0f85b4e57bf57/src/apploader/apploader.c#L114
+*/
+void rrc_loader_video_fix(char region)
+{
+    /* Get video mode configuration */
+    bool progressive = (CONF_GetProgressiveScan() > 0) && VIDEO_HaveComponentCable();
+    bool PAL60 = CONF_GetEuRGB60() > 0;
+    u32 tvmode = CONF_GetVideo();
+
+    int r_rmode_reg = 0;
+    void * r_rmode = VIDEO_GetPreferredMode(0);
+
+    switch (tvmode) {
+        case CONF_VIDEO_PAL:
+            r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
+            r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
+            break;
+
+        case CONF_VIDEO_MPAL:
+            r_rmode_reg = VI_MPAL;
+            r_rmode = progressive ? &TVEurgb60Hz480Prog : &TVMpal480IntDf;
+            break;
+
+        case CONF_VIDEO_NTSC:
+            r_rmode_reg = VI_NTSC;
+            r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
+            break;
+    }
+
+    switch (region) {
+        case 'D':
+        case 'F':
+        case 'P':
+        case 'X':
+        case 'Y':
+            r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
+            r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
+            break;
+        case 'E':
+        case 'J': 
+            r_rmode_reg = VI_NTSC;
+            r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
+
+    }
+
+    (*(volatile unsigned int *)0x800000cc) = r_rmode_reg;
+    rrc_invalidate_cache((void *)0x800000cc, 4);
+
+    if (r_rmode != 0) {
+        VIDEO_Configure(r_rmode);
+    }
+}
+
 void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
 {
     struct rrc_result res;
@@ -579,7 +661,21 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     res = load_pulsar_loader(dol, riivo_out.loader_pul_dest);
     rrc_result_error_check_error_fatal(&res);
 
-    rrc_con_update("Prepare For Patching: Patch Memory Map", 65);
+    rrc_loader_video_fix('P');
+
+    rrc_con_update("Patch and Launch Game", 75);
+
+    wiisocket_deinit();
+
+    __IOS_ShutdownSubsystems();
+    for (u32 i = 0; i < 32; i++)
+    {
+        IOS_Close(i);
+    }
+
+    IRQ_Disable();
+
+    SYS_ResetSystem(SYS_SHUTDOWN, 0, 0);
 
     // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
 
@@ -612,10 +708,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     ICInvalidateRange((void *)0x80000000, 0x3400);
     DCFlushRange((void *)0x80000000, 0x01800000);
 
-    rrc_con_update("Patch and Launch Game", 75);
-
-    wiisocket_deinit();
-
     // The last step is to copy the sections from the safe space to where they actually need to be.
     // This requires copying the function itself to the safe address space so we don't overwrite ourselves.
     // It also needs to call `DCFlushRange` but cannot reference it in the function, so we copy it and pass it as a function pointer.
@@ -636,14 +728,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     memcpy(dc_flush_range, DCFlushRange, 64);
     DCFlushRange(dc_flush_range, 64);
     ICInvalidateRange(dc_flush_range, 64);
-
-    __IOS_ShutdownSubsystems();
-    for (u32 i = 0; i < 32; i++)
-    {
-        IOS_Close(i);
-    }
-
-    IRQ_Disable();
 
     patch_dol_helper(
         dol,

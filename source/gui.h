@@ -17,6 +17,11 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifndef RRC_GUI_H
+#define RRC_GUI_H
+
+#include <gccore.h>
+
 /*
     Initialises the main GUI.
 
@@ -47,3 +52,12 @@ void rrc_gui_display_con(void *xfb, bool clear_console);
     Returns 0 status code n success, -1 on error.
 */
 int rrc_gui_display_banner(void *xfb);
+
+/*
+    Using the preferred video mode seems to not work for some configurations.
+
+    Define our own subset of supported resolutions.
+*/
+GXRModeObj* rrc_gui_get_video_mode();
+
+#endif
