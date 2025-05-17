@@ -31,6 +31,6 @@
     Otherwise, an error is returned. This error can either be treated as fatal or
     prompt the user to retry inserting with an unlocked SD card.
 */
-struct rrc_result rrc_sd_init(char *old_cwd, int buf_size);
+struct rrc_result rrc_sd_init();
 
 #endif

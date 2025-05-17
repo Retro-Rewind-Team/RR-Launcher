@@ -76,8 +76,7 @@ int main(int argc, char **argv)
     init_exception_handlers();
 
     // NOTE: We can't call any kind of printf before initialising libfat
-    char apps_cwd[256];
-    struct rrc_result sdinit_res = rrc_sd_init(apps_cwd, sizeof(apps_cwd));
+    struct rrc_result sdinit_res = rrc_sd_init();
     rrc_result_error_check_error_fatal(&sdinit_res);
 
     rrc_con_update("Initialise controllers", 0);
@@ -284,7 +283,7 @@ interrupt_loop_end:
     {
         mem2_hi = 0x93400000;
     }
-    rrc_loader_load(dol, &stored_settings, apps_cwd, bi2, mem1_hi, mem2_hi);
+    rrc_loader_load(dol, &stored_settings, bi2, mem1_hi, mem2_hi);
 
     return 0;
 }

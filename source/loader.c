@@ -488,26 +488,9 @@ static struct rrc_result load_pulsar_loader(struct rrc_dol *dol, void *real_load
     return rrc_result_success;
 }
 
-static struct rrc_result load_runtime_ext(const char *apps_cwd)
+static struct rrc_result load_runtime_ext()
 {
-    // Create the path relative to the cwd (sd:// on dolphin or apps folder through HBC).
-    char dol_path[PATH_MAX];
-    char *path_ptr = dol_path;
-    int cwd_len = strlen(apps_cwd);
-    RRC_ASSERT(cwd_len < PATH_MAX, "apps_cwd longer than PATH_MAX");
-
-    strncpy(path_ptr, apps_cwd, sizeof(dol_path));
-    path_ptr += cwd_len;
-
-    if (dol_path[cwd_len - 1] != '/')
-    {
-        // Add a trailing slash if it doesn't exist already.
-        dol_path[cwd_len] = '/';
-        path_ptr++;
-    }
-    strncpy(path_ptr, "runtime-ext.dol", sizeof(dol_path) - (path_ptr - dol_path));
-
-    FILE *patch_file = fopen(dol_path, "r");
+    FILE *patch_file = fopen(RRC_RUNTIME_EXT_PATH, "r");
     if (!patch_file)
     {
         return rrc_result_create_error_errno(errno, "Failed to open runtime-ext.dol");
@@ -579,13 +562,13 @@ asm("patch_dol_helper:\n"
     "mtctr 8\n"
     "bctrl\n");
 
-void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, const char *apps_cwd, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
+void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
 {
     struct rrc_result res;
 
     // runtime-ext needs to be loaded before parsing riivo patches, as it writes to a static.
     // All errors that happen here are fatal; we can't boot the game without knowing the patches or having the patched DVD functions.
-    res = load_runtime_ext(apps_cwd);
+    res = load_runtime_ext();
     rrc_result_error_check_error_fatal(&res);
 
     struct parse_riivo_output riivo_out;

@@ -225,7 +225,12 @@ static bool rte_dvd_resolve_path_to_entry_num(const char *filename, s32 *entry_n
                 // The folder replacement path matches. Let's see if the file actually exists in the directory.
                 char new_path[64];
                 char *path_ptr = new_path;
-                strncpy(new_path, external_path, 64);
+                if (strlen(external_path) >= 64)
+                {
+                    RTE_FATAL("External path '%s' is too long", external_path);
+                }
+                strncpy(new_path, external_path, sizeof(new_path));
+
                 path_ptr += external_len;
                 if (filename[fi] != '/' && external_path[external_len - 1] != '/')
                 {
