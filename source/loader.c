@@ -600,18 +600,18 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, con
 
     // Addresses are taken from <https://wiibrew.org/wiki/Memory_map> for the most part.
 
-    *(u32 *)0xCD006C00 = 0x00000000;           // Reset `AI_CONTROL` to fix audio
-    *(u32 *)0x80000034 = 0;                    // Arena High
-    *(u32 *)0x800000EC = 0x81800000;           // Dev Debugger Monitor Address
-    *(u32 *)0x800000F0 = 0x01800000;           // Simulated Memory Size
-    *(u32 *)0x800000F4 = (u32)bi2_dest;        // Pointer to bi2
-    *(u32 *)0x800000F8 = 0x0E7BE2C0;           // Console Bus Speed
-    *(u32 *)0x800000FC = 0x2B73A840;           // Console CPU Speed
-    *(u32 *)0x80003110 = mem1_hi;              // MEM1 Arena End
-    *(u32 *)0x80003124 = 0x90000800;           // Usable MEM2 Start
-    *(u32 *)0x80003128 = mem2_hi;              // Usable MEM2 End
-    *(u32 *)0x80003180 = *(u32 *)(0x80000000); // Game ID
-    *(u32 *)0x80003188 = *(u32 *)(0x80003140); // Minimum IOS Version
+    *(u32 *)0xCD006C00 = 0x00000000;              // Reset `AI_CONTROL` to fix audio
+    *(u32 *)0x80000034 = 0;                       // Arena High
+    *(u32 *)0x800000EC = 0x81800000;              // Dev Debugger Monitor Address
+    *(u32 *)0x800000F0 = 0x01800000;              // Simulated Memory Size
+    *(u32 *)0x800000F4 = (u32)bi2_dest;           // Pointer to bi2
+    *(u32 *)0x800000F8 = 0x0E7BE2C0;              // Console Bus Speed
+    *(u32 *)0x800000FC = 0x2B73A840;              // Console CPU Speed
+    *(u32 *)0x80003110 = align_down(mem1_hi, 32); // MEM1 Arena End
+    *(u32 *)0x80003124 = 0x90000800;              // Usable MEM2 Start
+    *(u32 *)0x80003128 = align_down(mem2_hi, 32); // Usable MEM2 End
+    *(u32 *)0x80003180 = *(u32 *)(0x80000000);    // Game ID
+    *(u32 *)0x80003188 = *(u32 *)(0x80003140);    // Minimum IOS Version
 
     memcpy((u32 *)0x80000000, "RMCP01", 6);
     DCFlushRange((u32 *)0x80000000, 32);
