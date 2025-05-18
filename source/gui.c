@@ -55,7 +55,8 @@ void rrc_gui_display_con(void *xfb, bool clear_console)
     VIDEO_SetNextFramebuffer(xfb);
     // Make the display visible
     VIDEO_SetBlack(false);
-    VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
+    if (clear_console)
+        VIDEO_ClearFrameBuffer(rmode, xfb, COLOR_BLACK);
     // Flush the video register changes to the hardware
     VIDEO_Flush();
     // Wait for Video setup to complete

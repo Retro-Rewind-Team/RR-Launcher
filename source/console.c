@@ -26,41 +26,23 @@
 #include "console.h"
 #include "util.h"
 
-const int bg_colour_cycle_len = 12;
-const char *bg_colour_cycle[] =
-    {
-        RRC_CON_ANSI_BG_RED,
-        RRC_CON_ANSI_BG_BRIGHT_RED,
-        RRC_CON_ANSI_BG_YELLOW,
-        RRC_CON_ANSI_BG_BRIGHT_YELLOW,
-        RRC_CON_ANSI_BG_GREEN,
-        RRC_CON_ANSI_BG_BRIGHT_GREEN,
-        RRC_CON_ANSI_BG_CYAN,
-        RRC_CON_ANSI_BG_BRIGHT_CYAN,
-        RRC_CON_ANSI_BG_BLUE,
-        RRC_CON_ANSI_BG_BRIGHT_BLUE,
-        RRC_CON_ANSI_BG_MAGENTA,
-        RRC_CON_ANSI_BG_BRIGHT_MAGENTA};
-
-const int fg_colour_cycle_len = 5;
-const char *fg_colour_cycle[] =
-    {
-        RRC_CON_ANSI_FG_BRIGHT_RED,
-        RRC_CON_ANSI_FG_BRIGHT_YELLOW,
-        RRC_CON_ANSI_FG_BRIGHT_GREEN,
-        RRC_CON_ANSI_FG_BRIGHT_CYAN,
-        RRC_CON_ANSI_FG_BRIGHT_MAGENTA};
-
 /* 100 = 100% */
 int rrc_con_progress_percent = 0;
 char *rrc_con_current_action;
 int cached_version = -1;
 
-int _rrc_con_get_cols()
+int rrc_con_get_cols()
 {
     int cols, rows;
     CON_GetMetrics(&cols, &rows);
     return cols;
+}
+
+int rrc_con_get_rows()
+{
+    int cols, rows;
+    CON_GetMetrics(&cols, &rows);
+    return rows;
 }
 
 void rrc_con_set_action(char *action)
@@ -85,29 +67,10 @@ void rrc_con_update(char *action, int progress_percent)
     rrc_con_print_state();
 }
 
-/* displays with nice ANSI colours */
-void _rrc_con_print_splash()
-{
-    int next = 0;
-    printf(RRC_CON_ANSI_FG_BLACK);
-    for (int i = 0; i < strlen(_RRC_SPLASH); i++)
-    {
-        printf(bg_colour_cycle[next]);
-        putc(_RRC_SPLASH[i], stdout);
-        next++;
-        if (next >= bg_colour_cycle_len)
-        {
-            next = 0;
-        }
-    };
-
-    puts(RRC_CON_ANSI_CLR);
-}
-
 void rrc_con_cursor_seek_to_row_centered(int row, int text_len)
 {
 
-    int off = (_rrc_con_get_cols() / 2) - text_len;
+    int off = (rrc_con_get_cols() / 2) - text_len;
     rrc_con_cursor_seek_to(row, off);
 }
 
@@ -120,16 +83,11 @@ void rrc_con_print_text_centered(int row, char *text)
 
 int rrc_con_centered_text_start_column(char *text)
 {
-    return (_rrc_con_get_cols() / 2) - (strlen(text) / 2);
+    return (rrc_con_get_cols() / 2) - (strlen(text) / 2);
 }
 
-void rrc_con_display_splash()
+void rrc_con_display_version()
 {
-    int splash_len = strlen(_RRC_SPLASH);
-    int middle_off = splash_len / 2;
-    rrc_con_cursor_seek_to_row_centered(_RRC_SPLASH_ROW, middle_off);
-    _rrc_con_print_splash();
-
     if (cached_version == -1)
     {
         struct rrc_result version_result = rrc_update_get_current_version(&cached_version);
@@ -138,13 +96,14 @@ void rrc_con_display_splash()
 
     char vertext[32];
     snprintf(vertext, 32, "Version: %i.%i.%i", cached_version / 100, (cached_version / 10) % 10, cached_version % 10);
-    rrc_con_print_text_centered(_RRC_SPLASH_ROW + 1, vertext);
+    rrc_con_cursor_seek_to(rrc_con_get_rows() - 2, rrc_con_get_cols() - strlen(vertext));
+    printf("%s", vertext);
 }
 
 void rrc_con_display_progress_bar()
 {
     printf(RRC_CON_ANSI_CLR);
-    int inner_width = (_rrc_con_get_cols()) - (RRC_CON_EDGE_PAD * 2);
+    int inner_width = (rrc_con_get_cols()) - (RRC_CON_EDGE_PAD * 2);
     bool progress_bar[inner_width];
     for (int i = 0; i < inner_width; i++)
     {
@@ -192,7 +151,7 @@ void rrc_con_display_action()
 
 void rrc_con_print_state()
 {
-    rrc_con_display_splash();
+    rrc_con_display_version();
     rrc_con_display_progress_bar();
     rrc_con_display_action();
 }
@@ -211,7 +170,7 @@ void rrc_con_clear_line(int row)
     }
 }
 
-void rrc_con_clear(bool keep_splash)
+void rrc_con_clear(bool keep_version)
 {
     int cols, rows;
 
@@ -221,8 +180,8 @@ void rrc_con_clear(bool keep_splash)
         rrc_con_clear_line(i);
     }
 
-    if (keep_splash)
+    if (keep_version)
     {
-        rrc_con_display_splash();
+        rrc_con_display_version();
     }
 }
