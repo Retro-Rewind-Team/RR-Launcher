@@ -22,14 +22,13 @@
 
 #include <stdbool.h>
 
-#define _RRC_SPLASH "RETRO REWIND"
-#define _RRC_SPLASH_ROW 1
-
 #define _RRC_PROGRESS_ROW 4
 
 #define _RRC_ACTION_ROW 7
 
 #define _RRC_PRINTF_ROW 10
+
+#define RRC_SETTINGS_ROW_START 1
 
 #define RRC_CON_ANSI_FG_BLACK "\x1b[30;0m"
 #define RRC_CON_ANSI_FG_RED "\x1b[31;0m"
@@ -72,6 +71,9 @@
 
 #define RRC_CON_EDGE_PAD 2
 
+int rrc_con_get_cols();
+int rrc_con_get_rows();
+
 void rrc_con_set_action(char *action);
 
 void rrc_con_set_progress_percent(int progress);
@@ -89,7 +91,7 @@ void rrc_con_print_text_centered(int row, char *text);
 */
 int rrc_con_centered_text_start_column(char *text);
 
-void rrc_con_display_splash();
+void rrc_con_display_version();
 
 void rrc_con_display_progress_bar();
 

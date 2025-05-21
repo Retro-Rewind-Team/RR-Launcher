@@ -29,7 +29,7 @@
 #include "gui.h"
 
 #define _RRC_OPTIONS_W_PAD "         " /* 9 spaces between each option */
-#define _RRC_PROMPT_TEXT_FIRST_ROW 7
+#define _RRC_PROMPT_TEXT_FIRST_ROW 4
 #define _RRC_PROMPT_OPTIONS_PAD 1
 #define _RRC_PROMPT_LINES_MAX 10
 
@@ -80,7 +80,7 @@ enum rrc_prompt_result rrc_prompt_2_options(
     rrc_gui_display_con(prompt_xfb, true);
     rrc_gui_display_banner(prompt_xfb);
 
-    rrc_con_display_splash();
+    rrc_con_display_version();
 
     int cols, rows;
     CON_GetMetrics(&cols, &rows);
@@ -186,7 +186,7 @@ void rrc_prompt_1_option(void *old_xfb,
     rrc_gui_display_con(prompt_xfb, true);
     rrc_gui_display_banner(prompt_xfb);
 
-    rrc_con_display_splash();
+    rrc_con_display_version();
 
     int cols, rows;
     CON_GetMetrics(&cols, &rows);
