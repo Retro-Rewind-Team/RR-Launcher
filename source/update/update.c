@@ -359,6 +359,7 @@ struct rrc_result rrc_update_extract_zip_archive()
         }
 
         fclose(outfile);
+        zip_fclose(zip_file);
     }
 
     zip_close(archive);
