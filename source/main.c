@@ -30,6 +30,7 @@
 #include <sys/statvfs.h>
 #include <errno.h>
 
+#include "shutdown.h"
 #include "util.h"
 #include "di.h"
 #include "time.h"
@@ -57,6 +58,8 @@ int main(int argc, char **argv)
     // Use a version used by the game that is known to work with pulsar.
     // FIXME: try to use the disk's IOS version?
     RRC_ASSERTEQ(IOS_ReloadIOS(37), 0, "Failed to reload IOS");
+
+    rrc_shutdown_register_callbacks();
 
     // We reserve ~1MB of MEM1 upfront for the runtime-ext dol.
     u32 mem1_hi = 0x81744260;
@@ -178,6 +181,8 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < INTERRUPT_TIME / RRC_WPAD_LOOP_TIMEOUT; i++)
     {
+        rrc_shutdown_check();
+
         PAD_ScanPads();
         WPAD_ScanPads();
 

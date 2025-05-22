@@ -33,6 +33,7 @@
 #include "../console.h"
 #include "../time.h"
 #include "../prompt.h"
+#include "../shutdown.h"
 
 #define _RRC_UPDATE_ZIP_NAME "update.zip"
 
@@ -404,6 +405,9 @@ struct rrc_result rrc_update_do_updates_with_state(struct rrc_update_state *stat
 {
     while (state->current_update_num < state->num_updates)
     {
+        /* We can check for this between updates since we have no in-flight information */
+        rrc_shutdown_check();
+
         char *url = state->update_urls[state->current_update_num];
 
         curl_off_t zipsz;
