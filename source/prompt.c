@@ -29,9 +29,9 @@
 #include "gui.h"
 
 #define _RRC_OPTIONS_W_PAD "         " /* 9 spaces between each option */
-#define _RRC_PROMPT_TEXT_FIRST_ROW 4
+#define _RRC_PROMPT_TEXT_FIRST_ROW 3
 #define _RRC_PROMPT_OPTIONS_PAD 1
-#define _RRC_PROMPT_LINES_MAX 10
+#define _RRC_PROMPT_LINES_MAX 12
 
 static void *prompt_xfb = NULL;
 
@@ -71,7 +71,7 @@ enum rrc_prompt_result rrc_prompt_2_options(
 {
     _rrc_prompt_xfb_setup();
 
-    if (n >= _RRC_PROMPT_LINES_MAX)
+    if (n > _RRC_PROMPT_LINES_MAX)
     {
         rrc_gui_display_con(old_xfb, false);
         return RRC_PROMPT_RESULT_ERROR;
@@ -177,7 +177,7 @@ void rrc_prompt_1_option(void *old_xfb,
 {
     _rrc_prompt_xfb_setup();
 
-    if (n >= _RRC_PROMPT_LINES_MAX)
+    if (n > _RRC_PROMPT_LINES_MAX)
     {
         rrc_gui_display_con(old_xfb, false);
         return;
