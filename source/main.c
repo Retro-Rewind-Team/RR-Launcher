@@ -85,6 +85,38 @@ int main(int argc, char **argv)
     res = WPAD_Init();
     RRC_ASSERTEQ(res, WPAD_ERR_NONE, "WPAD_Init");
 
+    FILE *afd = fopen("sd:/RetroRewindChannel/accept.txt", "r");
+    if (afd == NULL)
+    {
+        char *lines[] = {
+            "- - - WARNING - - -",
+            "This channel is still experimental and may have bugs.",
+            "",
+            "By continuing, you accept that there is NO WARRANTY",
+            "associated with this software, express or implied.",
+            "",
+            "This includes crashes, false-positive online bans,",
+            "incorrect or corrupted assets, corruption of installation,",
+            "loss of data, or potential system inoperability."};
+
+        enum rrc_prompt_result result = rrc_prompt_2_options(xfb, lines, 9, "I Accept", "Close Launcher", RRC_PROMPT_RESULT_OK, RRC_PROMPT_RESULT_CANCEL);
+        if (result == RRC_PROMPT_RESULT_CANCEL)
+        {
+            exit(0);
+        }
+
+        FILE *afd = fopen("sd:/RetroRewindChannel/accept.txt", "w");
+        if(afd == NULL)
+        {
+            struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to create acceptance file. The SD card may be locked.");
+            rrc_result_error_check_error_normal(&err, xfb);
+        } else {
+            fclose(afd);
+        }
+    } else {
+        fclose(afd);
+    }
+
     rrc_con_update("Initialise DVD", 10);
     int fd = rrc_di_init();
     RRC_ASSERT(fd != 0, "rrc_di_init");
