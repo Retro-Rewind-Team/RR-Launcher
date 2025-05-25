@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <ogc/wiilaunch.h>
 
+#include "shutdown.h"
 #include "console.h"
 #include "prompt.h"
 #include "util.h"
@@ -119,6 +120,7 @@ enum rrc_prompt_result rrc_prompt_2_options(
 
     while (1)
     {
+        rrc_shutdown_check();
         PAD_ScanPads();
         WPAD_ScanPads();
         int wiipressed = WPAD_ButtonsDown(0);
@@ -215,6 +217,7 @@ void rrc_prompt_1_option(void *old_xfb,
     // just wait for an A press lol
     while (1)
     {
+        rrc_shutdown_check();
         WPAD_ScanPads();
         PAD_ScanPads();
         int wiipressed = WPAD_ButtonsDown(0);
