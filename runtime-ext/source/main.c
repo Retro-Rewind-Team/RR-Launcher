@@ -28,6 +28,7 @@
 #include <dol.h>
 #include "util.h"
 #include "dvd.h"
+#include <errno.h>
 
 #define EXPORT_FUNCTION(secname, decl_args, call_args, implname) \
     __attribute__((section(secname))) s32 __##implname decl_args \
@@ -41,14 +42,51 @@ EXPORT_FUNCTION(".dvd_fast_open", (s32 entry_num, FileInfo *file_info), (entry_n
 EXPORT_FUNCTION(".dvd_read_prio", (FileInfo * file_info, void *buffer, s32 length, s32 offset, s32 prio), (file_info, buffer, length, offset, prio), custom_read_prio_impl);
 EXPORT_FUNCTION(".dvd_close", (FileInfo * file_info), (file_info), custom_close_impl);
 
+struct sd_vtable
+{
+    void *open;
+    void *close;
+    void *read;
+    void *write;
+    void *rename;
+    void *stat;
+    void *mkdir;
+    void *diropen;
+    void *dirnext;
+    void *dirclose;
+    void *seek;
+    void *errno_;
+};
+
+int SD_errno()
+{
+    return errno;
+}
+
+__attribute__((section(".sd_vtable"))) static struct sd_vtable __sd_vtable = {
+    .open = SD_open,
+    .close = SD_close,
+    .read = SD_read,
+    .write = SD_write,
+    .rename = SD_rename,
+    .stat = SD_stat,
+    .mkdir = SD_mkdir,
+    .diropen = SD_diropen,
+    .dirnext = SD_dirnext,
+    .dirclose = SD_dirclose,
+    .seek = SD_seek,
+    .errno_ = SD_errno,
+};
+
 int _start()
 {
-    // Prevent linker from DCE'ing the functions
+    // Prevent linker from DCE'ing the symbols
     *(volatile u32 *)__custom_convert_path_to_entry_num_impl;
     *(volatile u32 *)__custom_open_impl;
     *(volatile u32 *)__custom_fast_open_impl;
     *(volatile u32 *)__custom_read_prio_impl;
     *(volatile u32 *)__custom_close_impl;
+    *(volatile u32 *)((volatile struct sd_vtable *)&__sd_vtable)->open;
 
     // Get the compiler to remove all unnecessary libogc deinitialization code, this function is never actually called
     while (1)

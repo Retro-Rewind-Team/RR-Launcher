@@ -59,6 +59,21 @@ struct rte_open_file
     s32 refcount;
 };
 
+// Size/Align assumptions made by RR/Pulsar's SDIO
+_Static_assert(sizeof(FILE_STRUCT) == 80);
+_Static_assert(_Alignof(FILE_STRUCT) == 4);
+_Static_assert(sizeof(DIR_STATE_STRUCT) == 836);
+_Static_assert(_Alignof(DIR_STATE_STRUCT) == 4);
+_Static_assert(sizeof(struct stat) == 88);
+_Static_assert(_Alignof(struct stat) == 8);
+
+_Static_assert(offsetof(struct stat, st_mode) == 8);
+_Static_assert(offsetof(struct stat, st_nlink) == 12); // Make sure stat is a u32
+_Static_assert(offsetof(FILE_STRUCT, filesize) == 0);
+
+_Static_assert(S_IFDIR == 0040000);
+_Static_assert(S_IFMT == 0170000);
+
 struct rte_sd_entrynum
 {
     /**
