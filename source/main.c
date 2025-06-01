@@ -131,7 +131,8 @@ int main(int argc, char **argv)
 
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
-    res = rrc_loader_await_mkw(xfb);
+    char region;
+    res = rrc_loader_await_mkw(xfb, &region);
     if (res == RRC_RES_SHUTDOWN_INTERRUPT)
     {
         exit(0);
@@ -319,7 +320,7 @@ interrupt_loop_end:
     {
         mem2_hi = 0x93400000;
     }
-    rrc_loader_load(dol, &stored_settings, bi2, mem1_hi, mem2_hi);
+    rrc_loader_load(dol, &stored_settings, bi2, mem1_hi, mem2_hi, region);
 
     return 0;
 }
