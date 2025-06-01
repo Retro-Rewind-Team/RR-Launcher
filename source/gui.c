@@ -26,8 +26,8 @@
 
 #define _RRC_GUI_CON_START_X_4_3 70
 #define _RRC_GUI_CON_START_Y_4_3 114
-#define _RRC_GUI_CON_WIDTH_4_3 570
-#define _RRC_GUI_CON_HEIGHT_4_3 420
+#define _RRC_GUI_CON_WIDTH_4_3 502
+#define _RRC_GUI_CON_HEIGHT_4_3 300
 
 void rrc_gui_xfb_alloc(void **xfb, bool sys_stdio_report)
 {
