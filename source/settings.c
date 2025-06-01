@@ -17,6 +17,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "shutdown.h"
 #include "settings.h"
 #include "util.h"
 #include "console.h"
@@ -280,6 +281,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
     while (1)
     {
+        rrc_shutdown_check();
         int row = RRC_SETTINGS_ROW_START;
         bool has_unsaved_changes = false;
 
