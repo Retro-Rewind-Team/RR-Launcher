@@ -18,17 +18,17 @@
 
     `rrc_loader_video_fix' uses code adapted from Brainslug:
     Copyright (C) 2014, Alex Chadwick
- 
+
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
     in the Software without restriction, including without limitation the rights
     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     copies of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
-    
+
     The above copyright notice and this permission notice shall be included in
     all copies or substantial portions of the Software.
-    
+
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -561,7 +561,9 @@ static struct rrc_result load_runtime_ext()
     return rrc_result_success;
 }
 
-typedef void (*patch_dol_func_t)(struct rrc_dol *, struct rrc_riivo_memory_patch *, int, void (*)(void *, u32), void (*)(void *, u32));
+typedef void (*ic_invalidate_range_t)(void *, u32);
+typedef ic_invalidate_range_t dc_flush_range_t;
+typedef void (*patch_dol_func_t)(struct rrc_dol *, struct rrc_riivo_memory_patch *, int, ic_invalidate_range_t, dc_flush_range_t);
 
 /**
  * Wrapper function around `patch_dol` that sets up the stack pointer to a safe location (workaround for missing support for __attribute__((naked))).
@@ -584,7 +586,6 @@ asm("patch_dol_helper:\n"
     "mtctr 8\n"
     "bctrl\n");
 
-
 /*
     Set a video mode that will load properly.
 
@@ -601,45 +602,47 @@ void rrc_loader_video_fix(char region)
     u32 tvmode = CONF_GetVideo();
 
     int r_rmode_reg = 0;
-    void * r_rmode = VIDEO_GetPreferredMode(0);
+    void *r_rmode = VIDEO_GetPreferredMode(0);
 
-    switch (tvmode) {
-        case CONF_VIDEO_PAL:
-            r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
-            r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
-            break;
+    switch (tvmode)
+    {
+    case CONF_VIDEO_PAL:
+        r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
+        r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
+        break;
 
-        case CONF_VIDEO_MPAL:
-            r_rmode_reg = VI_MPAL;
-            r_rmode = progressive ? &TVEurgb60Hz480Prog : &TVMpal480IntDf;
-            break;
+    case CONF_VIDEO_MPAL:
+        r_rmode_reg = VI_MPAL;
+        r_rmode = progressive ? &TVEurgb60Hz480Prog : &TVMpal480IntDf;
+        break;
 
-        case CONF_VIDEO_NTSC:
-            r_rmode_reg = VI_NTSC;
-            r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
-            break;
+    case CONF_VIDEO_NTSC:
+        r_rmode_reg = VI_NTSC;
+        r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
+        break;
     }
 
-    switch (region) {
-        case 'D':
-        case 'F':
-        case 'P':
-        case 'X':
-        case 'Y':
-            r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
-            r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
-            break;
-        case 'E':
-        case 'J': 
-            r_rmode_reg = VI_NTSC;
-            r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
-
+    switch (region)
+    {
+    case 'D':
+    case 'F':
+    case 'P':
+    case 'X':
+    case 'Y':
+        r_rmode_reg = PAL60 ? VI_EURGB60 : VI_PAL;
+        r_rmode = progressive ? &TVEurgb60Hz480Prog : (PAL60 ? &TVEurgb60Hz480IntDf : &TVPal528IntDf);
+        break;
+    case 'E':
+    case 'J':
+        r_rmode_reg = VI_NTSC;
+        r_rmode = progressive ? &TVNtsc480Prog : &TVNtsc480IntDf;
     }
 
     (*(volatile unsigned int *)0x800000cc) = r_rmode_reg;
     rrc_invalidate_cache((void *)0x800000cc, 4);
 
-    if (r_rmode != 0) {
+    if (r_rmode != 0)
+    {
         VIDEO_Configure(r_rmode);
     }
 }
@@ -719,12 +722,12 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     DCFlushRange(patch_copy, align_up(PATCH_DOL_LEN, 32));
     ICInvalidateRange(patch_copy, align_up(PATCH_DOL_LEN, 32));
 
-    void (*ic_invalidate_range)() = (void *)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN, 32);
+    ic_invalidate_range_t ic_invalidate_range = (ic_invalidate_range_t)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN, 32);
     memcpy(ic_invalidate_range, ICInvalidateRange, 64);
     DCFlushRange(ic_invalidate_range, 64);
     ICInvalidateRange(ic_invalidate_range, 64);
 
-    void (*dc_flush_range)() = (void *)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN + 64, 32);
+    dc_flush_range_t dc_flush_range = (dc_flush_range_t)align_up(RRC_PATCH_COPY_ADDRESS + PATCH_DOL_LEN + 64, 32);
     memcpy(dc_flush_range, DCFlushRange, 64);
     DCFlushRange(dc_flush_range, 64);
     ICInvalidateRange(dc_flush_range, 64);
