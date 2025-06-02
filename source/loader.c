@@ -458,15 +458,17 @@ static void patch_dvd_functions(struct rrc_dol *dol, char region)
     }
 
     // We need to hack around the fact you can't assign to arrays unless the rhs is a constant
-#define ADD_ENTRY(idx, fn)                                                                                    \
-    struct function_patch_entry e##idx = {.addr = rrc_dvdf_region_addrs[fn],                                  \
-                                          .backjmp_to_original = {},                                          \
-                                          .jmp_to_custom = {0x3d208178, 0x61292e60, 0x7d2903a6, 0x4e800420}}; \
-    memcpy(e##idx.backjmp_to_original, rrc_dvdf_rejoin_backjmp_instrs[fn], 4);                                \
+#define ADD_ENTRY(idx, fn)                                                         \
+    struct function_patch_entry e##idx = {.addr = (*rrc_dvdf_region_addrs)[fn],    \
+                                          .backjmp_to_original = {},               \
+                                          .jmp_to_custom = {}};                    \
+    memcpy(e##idx.backjmp_to_original, (*rrc_dvdf_region_backjmp_instrs)[fn], 16); \
+    memcpy(e##idx.jmp_to_custom, rrc_dvdf_jmp_to_custom_instrs[fn], 16);           \
     entries[idx] = e##idx;
 
-    const u32 *rrc_dvdf_region_addrs = rrc_dvdf_addrs[(u32)rg];
-    const u32 **rrc_dvdf_rejoin_backjmp_instrs = (const u32 **)rrc_dvdf_backjmp_instrs[(u32)rg];
+    const u32(*rrc_dvdf_region_addrs)[5] = &rrc_dvdf_addrs[(u32)rg];
+    const u32(*rrc_dvdf_region_backjmp_instrs)[5][4] = &rrc_dvdf_backjmp_instrs[(u32)rg];
+
     struct function_patch_entry entries[5] = {};
     ADD_ENTRY(0, RRC_DVDF_CONVERT_PATH_TO_ENTRYNUM)
     ADD_ENTRY(1, RRC_DVDF_FAST_OPEN)

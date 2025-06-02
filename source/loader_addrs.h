@@ -103,6 +103,16 @@ const u32 rrc_dvdf_backjmp_instrs[3][5][4] = {
             [RRC_DVDF_READ_PRIO] = {0x3d208015, 0x6129e764, 0x7d2903a6, 0x4e800420},
             [RRC_DVDF_CLOSE] = {0x3d208015, 0x6129e498, 0x7d2903a6, 0x4e800420}}};
 
+// We need to be able to jump to the custom functions. 
+// These jump to the approprate address for each custom function.
+const u32 rrc_dvdf_jmp_to_custom_instrs[5][4] = {
+    [RRC_DVDF_CONVERT_PATH_TO_ENTRYNUM] = {0x3d208178, 0x61292e60, 0x7d2903a6, 0x4e800420},
+    [RRC_DVDF_FAST_OPEN] = {0x3d208178, 0x61292ee0, 0x7d2903a6, 0x4e800420},
+    [RRC_DVDF_OPEN] = {0x3d208178, 0x61292ea0, 0x7d2903a6, 0x4e800420},
+    [RRC_DVDF_READ_PRIO] = {0x3d208178, 0x61292f20, 0x7d2903a6, 0x4e800420},
+    [RRC_DVDF_CLOSE] = {0x3d208178, 0x61292f60, 0x7d2903a6, 0x4e800420}
+};
+
 enum rrc_dvd_region rrc_region_char_to_region(char region)
 {
     switch (region)

@@ -1,3 +1,5 @@
+# Linker script for PAL runtime-ext
+
 SECTIONS {
     # .init, .text and .rodata are specified in Makefile LDFLAGS
     .dvd_convert_path_to_entrynum 0x81782e60 : { *(.dvd_convert_path_to_entrynum) }
