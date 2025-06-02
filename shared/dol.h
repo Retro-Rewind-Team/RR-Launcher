@@ -22,7 +22,7 @@
 #ifndef RRC_DOL_H
 #define RRC_DOL_H
 
-#include <gctypes.h>
+#include "types.h"
 
 #define RRC_DOL_SECTION_COUNT 18
 

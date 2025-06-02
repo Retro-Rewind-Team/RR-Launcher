@@ -20,7 +20,7 @@
 #ifndef RRC_RUNTIME_EXT_DVD
 #define RRC_RUNTIME_EXT_DVD
 
-#include <gctypes.h>
+#include <types.h>
 
 typedef struct FileInfo FileInfo;
 typedef struct CommandBlock CommandBlock;

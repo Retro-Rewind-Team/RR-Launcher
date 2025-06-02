@@ -34,4 +34,10 @@ u32 diff_msec(rrc_time_tick start, rrc_time_tick end);
  */
 rrc_time_tick gettime();
 
+/**
+ * Sleeps for a given amount of microseconds.
+ * This is a wrapper around usleep() that also periodically checks for shutdown requests.
+ */
+void rrc_usleep(u32 usec);
+
 #endif

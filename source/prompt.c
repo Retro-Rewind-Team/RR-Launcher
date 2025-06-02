@@ -28,6 +28,7 @@
 #include "prompt.h"
 #include "util.h"
 #include "gui.h"
+#include "pad.h"
 
 #define _RRC_OPTIONS_W_PAD "         " /* 9 spaces between each option */
 #define _RRC_PROMPT_TEXT_FIRST_ROW 3
@@ -121,21 +122,19 @@ enum rrc_prompt_result rrc_prompt_2_options(
     while (1)
     {
         rrc_shutdown_check();
-        PAD_ScanPads();
-        WPAD_ScanPads();
-        int wiipressed = WPAD_ButtonsDown(0);
-        int gcpressed = PAD_ButtonsDown(0);
 
-        if ((wiipressed & (WPAD_BUTTON_LEFT | WPAD_BUTTON_RIGHT)) || (gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT)))
+        struct pad_state pad = rrc_pad_buttons();
+
+        if (rrc_pad_left_right_pressed(pad))
         {
             dir_pressed = 1;
             selected_option = (selected_option == option1_result ? option2_result : option1_result);
         }
-        else if (dir_pressed && (!(wiipressed & (RRC_WPAD_LEFT_MASK | RRC_WPAD_RIGHT_MASK)) || !(gcpressed & (PAD_BUTTON_LEFT | PAD_BUTTON_RIGHT))))
+        else if (dir_pressed && !rrc_pad_left_right_pressed(pad))
         {
             dir_pressed = 0;
         }
-        else if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
+        else if (rrc_pad_a_pressed(pad))
         {
             break;
         }
@@ -218,11 +217,9 @@ void rrc_prompt_1_option(void *old_xfb,
     while (1)
     {
         rrc_shutdown_check();
-        WPAD_ScanPads();
-        PAD_ScanPads();
-        int wiipressed = WPAD_ButtonsDown(0);
-        int gcpressed = PAD_ButtonsDown(0);
-        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
+
+        struct pad_state pad = rrc_pad_buttons();
+        if (rrc_pad_a_pressed(pad))
         {
             break;
         }

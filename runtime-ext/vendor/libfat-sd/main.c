@@ -29,17 +29,8 @@
 #include <rvl/OSMutex.h>
 #include <stdbool.h>
 
-BSLUG_MODULE_GAME("????");
-BSLUG_MODULE_NAME("libfat-sd");
-BSLUG_MODULE_VERSION("v1.0");
-BSLUG_MODULE_AUTHOR("Chadderz");
-BSLUG_MODULE_LICENSE("BSD");
-
-BSLUG_EXPORT(sd_partition);
 PARTITION sd_partition;
 
-
-BSLUG_EXPORT(SD_Mount);
 int SD_Mount(void) {
     static uint8_t sd_cache[512 * 8 * 64];
     static OSMutex_t init_mutex;

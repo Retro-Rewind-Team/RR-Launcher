@@ -18,13 +18,13 @@
 */
 
 #include <stdbool.h>
-#include <gctypes.h>
+#include <types.h>
 #include <fcntl.h>
+#include <io/fat.h>
+#include <io/fat-sd.h>
+#include <stdio.h>
+#include <errno.h>
 #include "util.h"
-#include "io/fat.h"
-#include "io/fat-sd.h"
-#include "stdio.h"
-#include "errno.h"
 
 s32 rrc_rt_sd_init()
 {

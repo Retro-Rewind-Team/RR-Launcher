@@ -18,15 +18,14 @@
 */
 
 #include <stdbool.h>
-#include <gctypes.h>
+#include <types.h>
 #include <fcntl.h>
 #include <string.h>
-#include "io/fat-sd.h"
-#include "rvl/cache.h"
-#include "../vendor/libfat/fatfile.h"
-#include "../../shared/riivo.h"
-#include "../../shared/dol.h"
-
+#include <io/fat-sd.h>
+#include <rvl/cache.h>
+#include <libfat/fatfile.h>
+#include <riivo.h>
+#include <dol.h>
 #include "util.h"
 #include "dvd.h"
 
@@ -42,7 +41,7 @@ EXPORT_FUNCTION(".dvd_fast_open", (s32 entry_num, FileInfo *file_info), (entry_n
 EXPORT_FUNCTION(".dvd_read_prio", (FileInfo * file_info, void *buffer, s32 length, s32 offset, s32 prio), (file_info, buffer, length, offset, prio), custom_read_prio_impl);
 EXPORT_FUNCTION(".dvd_close", (FileInfo * file_info), (file_info), custom_close_impl);
 
-int main()
+int _start()
 {
     // Prevent linker from DCE'ing the functions
     *(volatile u32 *)__custom_convert_path_to_entry_num_impl;
