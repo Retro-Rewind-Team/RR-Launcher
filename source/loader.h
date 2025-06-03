@@ -20,6 +20,8 @@
 #ifndef RRC_LOADER_H
 #define RRC_LOADER_H
 
+#include <string.h>
+
 #include "settingsfile.h"
 #include <dol.h>
 
@@ -29,7 +31,15 @@
 #define RRC_RIIVO_DISC_PTR 0x81782fa0
 
 #define RRC_LOADER_PUL_PATH "RetroRewind6/Binaries/Loader.pul"
-#define RRC_RUNTIME_EXT_PATH "RetroRewindChannel/runtime-ext.dol"
+// We need to load the correct runtime-ext.
+// This is provided as a base; however, the region and file extension needs
+// to be appended at runtime.
+#define RRC_RUNTIME_EXT_BASE_PATH "RetroRewindChannel/runtime-ext"
+
+/*
+    `out' should be a statically allocated string no less than 64 bytes long.
+*/
+void rrc_loader_get_runtime_ext_path(char region, char *out);
 
 /*
  * Spins until Mario Kart Wii is inserted into the disc drive.

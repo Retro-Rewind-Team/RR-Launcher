@@ -58,6 +58,11 @@
 #include <mxml.h>
 #include <wiisocket.h>
 
+void rrc_loader_get_runtime_ext_path(char region, char *out)
+{
+    snprintf(out, 64, RRC_RUNTIME_EXT_BASE_PATH "-%c.dol", region);
+}
+
 int rrc_loader_locate_data_part(u32 *data_part_offset)
 {
     int res;
@@ -534,7 +539,9 @@ static struct rrc_result load_pulsar_loader(struct rrc_dol *dol, void *real_load
 
 static struct rrc_result load_runtime_ext(char region)
 {
-    FILE *patch_file = fopen(RRC_RUNTIME_EXT_PATH, "r");
+    char runtime_ext_path[64];
+    rrc_loader_get_runtime_ext_path(region, runtime_ext_path);
+    FILE *patch_file = fopen(runtime_ext_path, "r");
     if (!patch_file)
     {
         return rrc_result_create_error_errno(errno, "Failed to open runtime-ext.dol");
