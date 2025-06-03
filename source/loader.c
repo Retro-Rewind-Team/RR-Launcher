@@ -158,6 +158,7 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
+    memcpy((u32*)0x80000000, &did, sizeof(did));
     *region = did.game_id[3];
 
     return RRC_RES_OK;
@@ -541,6 +542,7 @@ static struct rrc_result load_runtime_ext(char region)
 {
     char runtime_ext_path[64];
     rrc_loader_get_runtime_ext_path(region, runtime_ext_path);
+
     FILE *patch_file = fopen(runtime_ext_path, "r");
     if (!patch_file)
     {
@@ -705,7 +707,7 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
         IOS_Close(i);
     }
 
-    IRQ_Disable();
+    //IRQ_Disable();
 
     SYS_ResetSystem(SYS_SHUTDOWN, 0, 0);
 
@@ -723,13 +725,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     *(u32 *)0x80003128 = align_down(mem2_hi, 32); // Usable MEM2 End
     *(u32 *)0x80003180 = *(u32 *)(0x80000000);    // Game ID
     *(u32 *)0x80003188 = *(u32 *)(0x80003140);    // Minimum IOS Version
-
-    char game_id[6];
-    snprintf(game_id, sizeof(game_id), "RMC%c01", region);
-    memcpy((u32 *)0x80000000, game_id, 6);
-    DCFlushRange((u32 *)0x80000000, 32);
-    memcpy((u32 *)0x80003180, game_id, 4);
-    DCFlushRange((u32 *)0x80003180, 32);
 
     if (*(u32 *)((u32)bi2_dest + 0x30) == 0x7ED40000)
     {
