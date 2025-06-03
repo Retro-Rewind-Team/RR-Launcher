@@ -20,7 +20,7 @@
 #ifndef RRC_RUNTIME_EXT_UTIL
 #define RRC_RUNTIME_EXT_UTIL
 
-#include <gctypes.h>
+#include <types.h>
 
 void OS_Report(const char *, ...);
 void OS_Fatal(u32 *, u32 *, const char *);

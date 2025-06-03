@@ -17,18 +17,18 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gctypes.h>
+#include <types.h>
 #include <fcntl.h>
 #include <string.h>
 #include "sd.h"
 #include "dvd.h"
 #include "util.h"
-#include "io/fat.h"
-#include "errno.h"
-#include "io/fat-sd.h"
-#include "stdio.h"
-#include "rvl/cache.h"
-#include "../../shared/riivo.h"
+#include <io/fat.h>
+#include <io/fat-sd.h>
+#include <errno.h>
+#include <stdio.h>
+#include <rvl/cache.h>
+#include <riivo.h>
 
 /**
  * Contains all <file> and <folder> replacements. Initialized in the launcher DOL based on the XML.

@@ -43,4 +43,5 @@ SECTIONS {
     PROVIDE(IOS_Ioctlv = 0x801945e0);
     PROVIDE(IOS_IoctlvReboot = 0x801946bc);
     PROVIDE(DCFlushRange = 0x801a162c);
+    PROVIDE(ICInvalidateRange = 0x801a1710);
 }

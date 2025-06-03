@@ -1,7 +1,7 @@
 #ifndef RRC_RIIVO_H
 #define RRC_RIIVO_H
 
-#include <gctypes.h>
+#include "types.h"
 
 #define RRC_RIIVO_XML_PATH "RetroRewind6/xml/RetroRewind6.xml"
 
