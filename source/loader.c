@@ -52,7 +52,7 @@
 #include "res.h"
 #include "console.h"
 #include "exception.h"
-#include "../shared/riivo.h"
+#include <riivo.h>
 #include "util.h"
 #include <mxml.h>
 #include <wiisocket.h>

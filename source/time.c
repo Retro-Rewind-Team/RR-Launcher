@@ -1,6 +1,5 @@
 /*
-    sd.h - SD helper function declarations.
-
+    time.h - Time-related function implementations.
     Copyright (C) 2025  Retro Rewind Team
 
     This program is free software: you can redistribute it and/or modify
@@ -17,12 +16,30 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef RRC_RUNTIME_EXT_SD
-#define RRC_RUNTIME_EXT_SD
-
 #include <types.h>
+#include <unistd.h>
+#include "time.h"
+#include "shutdown.h"
 
-s32 rrc_rt_sd_init();
-bool rrc_rt_sd_file_exists(const char *path);
+void rrc_usleep(u32 usec)
+{
+#define LONG_USLEEP (10 * 1000 * 1000) // 10 seconds
+#define LONG_UPERIOD (100 * 1000)      // 100ms
+#define SHORT_UPERIOD (1000)           // 1ms
 
-#endif
+    // For very long sleeps, use a slightly higher period to reduce the number of wakeups
+    u32 period = usec > LONG_USLEEP ? LONG_UPERIOD : SHORT_UPERIOD;
+
+    for (int i = 0; i < usec / period; i++)
+    {
+        usleep(period);
+        rrc_shutdown_check();
+    }
+
+    u32 rem = usec % period;
+    if (rem > 0)
+    {
+        usleep(rem);
+        rrc_shutdown_check();
+    }
+}

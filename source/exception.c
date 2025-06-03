@@ -38,6 +38,7 @@
 #include "exception.h"
 #include "console.h"
 #include "gui.h"
+#include "time.h"
 
 extern char exception_catch_start, exception_catch_end;
 
@@ -109,11 +110,7 @@ void _handle_exception(int exception)
         x++;
     }
 
-    for (int i = 0; i < EXCEPTION_DISPLAY_TIME_SEC * 1000; i++)
-    {
-        rrc_shutdown_check();
-        usleep(1000);
-    }
+    rrc_usleep(EXCEPTION_DISPLAY_TIME_SEC * 1000 * 1000);
 
     for (;;)
         _exit(-1);

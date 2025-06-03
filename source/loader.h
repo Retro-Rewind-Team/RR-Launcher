@@ -21,7 +21,7 @@
 #define RRC_LOADER_H
 
 #include "settingsfile.h"
-#include "../shared/dol.h"
+#include <dol.h>
 
 #define RRC_BI2_SIZE 0x2000
 #define RRC_PATCH_COPY_ADDRESS 0x80900000

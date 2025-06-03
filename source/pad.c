@@ -1,5 +1,5 @@
 /*
-    sd.h - SD helper function declarations.
+    pad.h - Unified gamepad/wiimote implementation
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,12 +17,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef RRC_RUNTIME_EXT_SD
-#define RRC_RUNTIME_EXT_SD
+#include "pad.h"
+#include <gctypes.h>
+#include <wiiuse/wpad.h>
+#include <ogc/pad.h>
 
-#include <types.h>
+struct pad_state rrc_pad_buttons()
+{
+    WPAD_ScanPads();
+    PAD_ScanPads();
 
-s32 rrc_rt_sd_init();
-bool rrc_rt_sd_file_exists(const char *path);
+    u32 wpad = WPAD_ButtonsDown(0);
+    u32 gc = PAD_ButtonsDown(0);
 
-#endif
+    struct pad_state state = {.wpad = wpad, .gc = gc};
+    return state;
+}

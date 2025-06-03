@@ -38,16 +38,6 @@
 // Whenever we have a loop waiting for wiipad button inputs, this timeout is used (in microseconds).
 #define RRC_WPAD_LOOP_TIMEOUT 20000
 
-// We generally don't care if ccp A or wiimote A was pressed, so these macros allow checking for both at once.
-#define RRC_WPAD_A_MASK (WPAD_BUTTON_A | WPAD_CLASSIC_BUTTON_A)
-#define RRC_WPAD_B_MASK (WPAD_BUTTON_B | WPAD_CLASSIC_BUTTON_B)
-#define RRC_WPAD_HOME_MASK (WPAD_BUTTON_HOME | WPAD_CLASSIC_BUTTON_HOME)
-#define RRC_WPAD_PLUS_MASK (WPAD_BUTTON_PLUS | WPAD_CLASSIC_BUTTON_PLUS)
-#define RRC_WPAD_UP_MASK (WPAD_BUTTON_UP | WPAD_CLASSIC_BUTTON_UP)
-#define RRC_WPAD_RIGHT_MASK (WPAD_BUTTON_RIGHT | WPAD_CLASSIC_BUTTON_RIGHT)
-#define RRC_WPAD_DOWN_MASK (WPAD_BUTTON_DOWN | WPAD_CLASSIC_BUTTON_DOWN)
-#define RRC_WPAD_LEFT_MASK (WPAD_BUTTON_LEFT | WPAD_CLASSIC_BUTTON_LEFT)
-
 #ifndef RRC_EXIT_DELAY
 #define RRC_EXIT_DELAY 3000000
 #endif

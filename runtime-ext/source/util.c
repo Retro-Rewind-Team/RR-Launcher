@@ -17,7 +17,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <gctypes.h>
+#include <types.h>
 
 u32 align_down(u32 num, u32 align_as)
 {

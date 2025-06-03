@@ -24,7 +24,7 @@
 #include "shutdown.h"
 #include "prompt.h"
 #include "result.h"
-
+#include "time.h"
 #include "console.h"
 
 const struct rrc_result rrc_result_success = {
@@ -194,11 +194,7 @@ void rrc_result_error_check_error_fatal(struct rrc_result *result)
     printf(RRC_CON_ANSI_FG_BRIGHT_CYAN "Additional info: " RRC_CON_ANSI_FG_WHITE "%s\n", result->context);
     printf("\n\nPlease check your installation of Retro Rewind.\nThe launcher will exit in %i seconds.", RRC_RESULT_FATAL_SPLASH_TIME_SEC);
 
-    for (int i = 0; i < RRC_RESULT_FATAL_SPLASH_TIME_SEC * 1000; i++)
-    {
-        rrc_shutdown_check();
-        usleep(1000);
-    }
+    rrc_usleep(RRC_RESULT_FATAL_SPLASH_TIME_SEC * 1000 * 1000);
 
     exit(1);
 }

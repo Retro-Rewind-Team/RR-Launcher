@@ -35,8 +35,8 @@
 #include "di.h"
 #include "time.h"
 #include "loader.h"
-#include "../shared/dol.h"
-#include "../shared/riivo.h"
+#include <dol.h>
+#include <riivo.h>
 #include "console.h"
 #include "settings.h"
 #include "update/versionsfile.h"
@@ -48,6 +48,7 @@
 #include "result.h"
 #include "exception.h"
 #include "sd.h"
+#include "pad.h"
 
 /* 100ms */
 #define DISKCHECK_DELAY 100000
@@ -109,14 +110,18 @@ int main(int argc, char **argv)
         }
 
         FILE *afd = fopen("sd:/RetroRewindChannel/accept.txt", "w");
-        if(afd == NULL)
+        if (afd == NULL)
         {
             struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to create acceptance file. The SD card may be locked.");
             rrc_result_error_check_error_normal(&err, xfb);
-        } else {
+        }
+        else
+        {
             fclose(afd);
         }
-    } else {
+    }
+    else
+    {
         fclose(afd);
     }
 
@@ -215,23 +220,17 @@ int main(int argc, char **argv)
     {
         rrc_shutdown_check();
 
-        PAD_ScanPads();
-        WPAD_ScanPads();
+        struct pad_state pad = rrc_pad_buttons();
 
-        int wiipressed = WPAD_ButtonsDown(0);
-        int gcpressed = PAD_ButtonsDown(0);
-
-        if (wiipressed & RRC_WPAD_HOME_MASK || gcpressed & PAD_BUTTON_START)
+        if (rrc_pad_home_pressed(pad))
         {
             return 0;
         }
-
-        if (wiipressed & RRC_WPAD_A_MASK || gcpressed & PAD_BUTTON_A)
+        else if (rrc_pad_a_pressed(pad))
         {
             break;
         }
-
-        if (wiipressed & RRC_WPAD_B_MASK || gcpressed & PAD_BUTTON_B)
+        else if (rrc_pad_b_pressed(pad))
         {
             struct rrc_result r;
             int out = rrc_settings_display(xfb, &stored_settings, &r);
