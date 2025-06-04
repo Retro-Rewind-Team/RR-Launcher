@@ -1,5 +1,5 @@
 /*
-    gui.h - implementation for initialisation and layout of gui
+    gui.c - implementation for initialisation and layout of gui
 
     Copyright (C) 2025  Retro Rewind Team
 

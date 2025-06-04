@@ -1,5 +1,5 @@
 /*
-    exception.h - exception stub handler
+    exception.c - exception stub handler
 
     Copyright (C) 2025  Retro Rewind Team
 

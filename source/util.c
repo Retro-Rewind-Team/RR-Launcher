@@ -1,5 +1,5 @@
 /*
-    util.h - utility function implementations
+    util.c - utility function implementations
 
     Copyright (C) 2025  Retro Rewind Team
 

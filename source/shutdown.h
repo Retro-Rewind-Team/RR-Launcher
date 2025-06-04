@@ -1,5 +1,6 @@
 /*
     shutdown.h - Shutdown and reset handler check header
+
     Copyright (C) 2025  Retro Rewind Team
 
     This program is free software: you can redistribute it and/or modify

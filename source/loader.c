@@ -1,5 +1,5 @@
 /*
-    loader.h - main app loader and patcher
+    loader.c - main app loader and patcher
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -717,7 +717,7 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
         IOS_Close(i);
     }
 
-    // IRQ_Disable();
+    IRQ_Disable();
 
     SYS_ResetSystem(SYS_SHUTDOWN, 0, 0);
 
