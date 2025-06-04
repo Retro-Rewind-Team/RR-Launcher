@@ -71,4 +71,7 @@ s32 custom_fast_open_impl(s32 entry_num, FileInfo *file_info);
 s32 custom_read_prio_impl(FileInfo *file_info, void *buffer, s32 length, s32 offset, s32 prio);
 bool custom_close_impl(FileInfo *file_info);
 
+// Provided in linker scripts
+bool DVDCancel(FileInfo *file_info);
+
 #endif

@@ -23,6 +23,7 @@ include $(DEVKITPPC)/wii_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
+RELEASE     := $(BUILD)/release
 SOURCES		:=	source source/update source/pngu
 DATA		:=  data
 TEXTURES	:=	textures
@@ -129,6 +130,13 @@ clean:
 #---------------------------------------------------------------------------------
 run:
 	wiiload $(OUTPUT).dol
+
+release: $(BUILD)
+	# Move files to correct places
+	mkdir -p $(RELEASE)/RetroRewindChannel
+	mkdir -p $(RELEASE)/apps/RetroRewind
+	cp runtime-ext/runtime-ext-* $(RELEASE)/RetroRewindChannel 
+	cp $(OUTPUT).dol $(RELEASE)/apps/RetroRewind/boot.dol
 
 #---------------------------------------------------------------------------------
 else

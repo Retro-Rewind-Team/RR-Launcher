@@ -1,5 +1,5 @@
 /*
-    pad.h - Unified gamepad/wiimote implementation
+    pad.c - Unified gamepad/wiimote implementation
 
     Copyright (C) 2025  Retro Rewind Team
 

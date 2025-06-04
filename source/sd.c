@@ -1,5 +1,5 @@
 /*
-    sd.h - SD card helper and initialisation routines
+    sd.c - SD card helper and initialisation routines
 
     Copyright (C) 2025  Retro Rewind Team
 

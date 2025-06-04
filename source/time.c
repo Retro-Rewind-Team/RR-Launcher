@@ -1,5 +1,6 @@
 /*
-    time.h - Time-related function implementations.
+    time.c - Time-related function implementations.
+
     Copyright (C) 2025  Retro Rewind Team
 
     This program is free software: you can redistribute it and/or modify

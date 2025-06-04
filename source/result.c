@@ -1,5 +1,5 @@
 /*
-    result.h - Error and success handling implementation
+    result.c - Error and success handling implementation
 
     Copyright (C) 2025  Retro Rewind Team
 

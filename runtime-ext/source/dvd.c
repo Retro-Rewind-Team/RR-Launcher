@@ -39,7 +39,6 @@ __attribute__((section(".riivo_disc_ptr"))) static struct rrc_riivo_disc *riivo_
 #define DVD_FAST_OPEN 0x93400020
 #define DVD_OPEN 0x93400040
 #define DVD_READ_PRIO 0x93400060
-#define DVD_CANCEL 0x80162fec
 
 /**
  * In order to tell whether an entrynum is a special-cased SD entrynum,
@@ -465,7 +464,8 @@ custom_close_impl(FileInfo *file_info)
     //
     // And yes: `DVDClose()` really always returns true (it has to!), the game's DVD error handler
     // has a bug where it will use-after-free in GP mode.
-    bool (*cb)(FileInfo *) = (void *)DVD_CANCEL;
-    cb(file_info);
+
+    // We discard the return value of DVDCancel just in case by some force of God it doesn't return true.
+    DVDCancel(file_info);
     return true;
 }

@@ -1,5 +1,5 @@
 /*
-    loader.h - main app loader and patcher
+    loader.c - main app loader and patcher
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -44,6 +44,7 @@
 #include <wiiuse/wpad.h>
 #include <ogc/conf.h>
 
+#include "loader_addrs.h"
 #include "prompt.h"
 #include "patch.h"
 #include "util.h"
@@ -56,6 +57,11 @@
 #include "util.h"
 #include <mxml.h>
 #include <wiisocket.h>
+
+void rrc_loader_get_runtime_ext_path(char region, char *out)
+{
+    snprintf(out, 64, RRC_RUNTIME_EXT_BASE_PATH "-%c.dol", region);
+}
 
 int rrc_loader_locate_data_part(u32 *data_part_offset)
 {
@@ -94,7 +100,7 @@ int rrc_loader_locate_data_part(u32 *data_part_offset)
     return 0;
 }
 
-int rrc_loader_await_mkw(void *xfb)
+int rrc_loader_await_mkw(void *xfb, char *region)
 {
     int res;
     unsigned int status;
@@ -152,6 +158,8 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
+    memcpy((u32 *)0x80000000, &did, sizeof(did));
+    *region = did.game_id[3];
 
     return RRC_RES_OK;
 }
@@ -434,7 +442,7 @@ static bool find_section_by_addr(struct rrc_dol *dol, u32 addr, void **virt_addr
  * Also allocates trampolines containing the first 4 overwritten instructions + backjump to the original function,
  * which is called when the custom function wants to call the original DVD function.
  */
-static void patch_dvd_functions(struct rrc_dol *dol)
+static void patch_dvd_functions(struct rrc_dol *dol, char region)
 {
     struct function_patch_entry
     {
@@ -446,13 +454,33 @@ static void patch_dvd_functions(struct rrc_dol *dol)
         u32 jmp_to_custom[4];
     };
 
-    struct function_patch_entry entries[] = {
-        {.addr = RRC_DVD_CONVERT_PATH_TO_ENTRYNUM, .backjmp_to_original = {0x3d208015, 0x6129df5c, 0x7d2903a6, 0x4e800420}, .jmp_to_custom = {0x3d208178, 0x61292e60, 0x7d2903a6, 0x4e800420}},
-        {.addr = RRC_DVD_FAST_OPEN, .backjmp_to_original = {0x3d208015, 0x6129e264, 0x7d2903a6, 0x4e800420}, .jmp_to_custom = {0x3d208178, 0x61292ee0, 0x7d2903a6, 0x4e800420}},
-        {.addr = RRC_DVD_OPEN, .backjmp_to_original = {0x3d208015, 0x6129e2cc, 0x7d2903a6, 0x4e800420}, .jmp_to_custom = {0x3d208178, 0x61292ea0, 0x7d2903a6, 0x4e800420}},
-        {.addr = RRC_DVD_READ_PRIO, .backjmp_to_original = {0x3d208015, 0x6129e844, 0x7d2903a6, 0x4e800420}, .jmp_to_custom = {0x3d208178, 0x61292f20, 0x7d2903a6, 0x4e800420}},
-        {.addr = RRC_DVD_CLOSE, .backjmp_to_original = {0x3d208015, 0x6129e578, 0x7d2903a6, 0x4e800420}, .jmp_to_custom = {0x3d208178, 0x61292f60, 0x7d2903a6, 0x4e800420}},
-    };
+    enum rrc_dvd_region rg = rrc_region_char_to_region(region);
+    if (rg == -1)
+    {
+        char e[64];
+        snprintf(e, sizeof(e), "Unsupported region %c", region);
+        struct rrc_result res = rrc_result_create_error_errno(ENOTSUP, e);
+        rrc_result_error_check_error_fatal(&res);
+    }
+
+    // We need to hack around the fact you can't assign to arrays unless the rhs is a constant
+#define ADD_ENTRY(idx, fn)                                                         \
+    struct function_patch_entry e##idx = {.addr = (*rrc_dvdf_region_addrs)[fn],    \
+                                          .backjmp_to_original = {},               \
+                                          .jmp_to_custom = {}};                    \
+    memcpy(e##idx.backjmp_to_original, (*rrc_dvdf_region_backjmp_instrs)[fn], 16); \
+    memcpy(e##idx.jmp_to_custom, rrc_dvdf_jmp_to_custom_instrs[fn], 16);           \
+    entries[idx] = e##idx;
+
+    const u32(*rrc_dvdf_region_addrs)[5] = &rrc_dvdf_addrs[(u32)rg];
+    const u32(*rrc_dvdf_region_backjmp_instrs)[5][4] = &rrc_dvdf_backjmp_instrs[(u32)rg];
+
+    struct function_patch_entry entries[5] = {};
+    ADD_ENTRY(0, RRC_DVDF_CONVERT_PATH_TO_ENTRYNUM)
+    ADD_ENTRY(1, RRC_DVDF_FAST_OPEN)
+    ADD_ENTRY(2, RRC_DVDF_OPEN)
+    ADD_ENTRY(3, RRC_DVDF_READ_PRIO)
+    ADD_ENTRY(4, RRC_DVDF_CLOSE)
 
     for (int i = 0; i < sizeof(entries) / sizeof(struct function_patch_entry); i++)
     {
@@ -510,12 +538,17 @@ static struct rrc_result load_pulsar_loader(struct rrc_dol *dol, void *real_load
     return rrc_result_success;
 }
 
-static struct rrc_result load_runtime_ext()
+static struct rrc_result load_runtime_ext(char region)
 {
-    FILE *patch_file = fopen(RRC_RUNTIME_EXT_PATH, "r");
+    char runtime_ext_path[64];
+    rrc_loader_get_runtime_ext_path(region, runtime_ext_path);
+
+    FILE *patch_file = fopen(runtime_ext_path, "r");
     if (!patch_file)
     {
-        return rrc_result_create_error_errno(errno, "Failed to open runtime-ext.dol");
+        char err[64];
+        snprintf(err, sizeof(err), "Failed to open %s", runtime_ext_path);
+        return rrc_result_create_error_errno(errno, err);
     }
     struct rrc_dol patch_dol;
 
@@ -523,7 +556,9 @@ static struct rrc_result load_runtime_ext()
     if (read != 1)
     {
         fclose(patch_file);
-        return rrc_result_create_error_errno(errno, "Failed to read full runtime-ext.dol");
+        char err[64];
+        snprintf(err, sizeof(err), "Failed to read %s", runtime_ext_path);
+        return rrc_result_create_error_errno(errno, err);
     }
 
     memset((void *)patch_dol.bss_addr, 0, patch_dol.bss_size);
@@ -545,13 +580,17 @@ static struct rrc_result load_runtime_ext()
         if (fseek(patch_file, sec, SEEK_SET) != 0)
         {
             fclose(patch_file);
-            return rrc_result_create_error_errno(errno, "Failed to seek to section in runtime-ext.dol");
+            char err[64];
+            snprintf(err, sizeof(err), "Failed to seek to section %i in %s", sec, runtime_ext_path);
+            return rrc_result_create_error_errno(errno, err);
         }
 
         if (fread((void *)sec_addr, sec_size, 1, patch_file) != 1)
         {
             fclose(patch_file);
-            return rrc_result_create_error_errno(errno, "Failed to read section in runtime-ext.dol");
+            char err[64];
+            snprintf(err, sizeof(err), "Failed to read section %i in %s", sec, runtime_ext_path);
+            return rrc_result_create_error_errno(errno, err);
         }
 
         rrc_invalidate_cache((void *)sec_addr, sec_size);
@@ -647,27 +686,29 @@ void rrc_loader_video_fix(char region)
     }
 }
 
-void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi)
+void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, void *bi2_dest, u32 mem1_hi, u32 mem2_hi, char region)
 {
     struct rrc_result res;
 
     // runtime-ext needs to be loaded before parsing riivo patches, as it writes to a static.
     // All errors that happen here are fatal; we can't boot the game without knowing the patches or having the patched DVD functions.
-    res = load_runtime_ext();
+    rrc_con_update("Load Runtime Extensions", 70);
+    res = load_runtime_ext(region);
     rrc_result_error_check_error_fatal(&res);
 
+    rrc_con_update("Load Patch Information", 80);
     struct parse_riivo_output riivo_out;
     res = parse_riivo_patches(settings, &mem1_hi, &mem2_hi, &riivo_out);
     rrc_result_error_check_error_fatal(&res);
 
-    patch_dvd_functions(dol);
+    rrc_con_update("Patch DVD Functions", 85);
+    patch_dvd_functions(dol, region);
     res = load_pulsar_loader(dol, riivo_out.loader_pul_dest);
     rrc_result_error_check_error_fatal(&res);
 
-    rrc_loader_video_fix('P');
+    rrc_loader_video_fix(region);
 
-    rrc_con_update("Patch and Launch Game", 75);
-
+    rrc_con_update("Final Preparations", 90);
     wiisocket_deinit();
 
     __IOS_ShutdownSubsystems();
@@ -694,11 +735,6 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     *(u32 *)0x80003128 = align_down(mem2_hi, 32); // Usable MEM2 End
     *(u32 *)0x80003180 = *(u32 *)(0x80000000);    // Game ID
     *(u32 *)0x80003188 = *(u32 *)(0x80003140);    // Minimum IOS Version
-
-    memcpy((u32 *)0x80000000, "RMCP01", 6);
-    DCFlushRange((u32 *)0x80000000, 32);
-    memcpy((u32 *)0x80003180, "RMCP", 4);
-    DCFlushRange((u32 *)0x80003180, 32);
 
     if (*(u32 *)((u32)bi2_dest + 0x30) == 0x7ED40000)
     {
