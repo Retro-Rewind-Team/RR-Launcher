@@ -158,7 +158,7 @@ check_cover_register:
         did.game_id[1], did.game_id[2], did.game_id[3], did.disc_ver);
 
     rrc_dbg_printf("Game ID/Rev: %s\n", gameId);
-    memcpy((u32*)0x80000000, &did, sizeof(did));
+    memcpy((u32 *)0x80000000, &did, sizeof(did));
     *region = did.game_id[3];
 
     return RRC_RES_OK;
@@ -546,7 +546,9 @@ static struct rrc_result load_runtime_ext(char region)
     FILE *patch_file = fopen(runtime_ext_path, "r");
     if (!patch_file)
     {
-        return rrc_result_create_error_errno(errno, "Failed to open runtime-ext.dol");
+        char err[64];
+        snprintf(err, sizeof(err), "Failed to open %s", runtime_ext_path);
+        return rrc_result_create_error_errno(errno, err);
     }
     struct rrc_dol patch_dol;
 
@@ -554,7 +556,9 @@ static struct rrc_result load_runtime_ext(char region)
     if (read != 1)
     {
         fclose(patch_file);
-        return rrc_result_create_error_errno(errno, "Failed to read full runtime-ext.dol");
+        char err[64];
+        snprintf(err, sizeof(err), "Failed to read %s", runtime_ext_path);
+        return rrc_result_create_error_errno(errno, err);
     }
 
     memset((void *)patch_dol.bss_addr, 0, patch_dol.bss_size);
@@ -576,13 +580,17 @@ static struct rrc_result load_runtime_ext(char region)
         if (fseek(patch_file, sec, SEEK_SET) != 0)
         {
             fclose(patch_file);
-            return rrc_result_create_error_errno(errno, "Failed to seek to section in runtime-ext.dol");
+            char err[64];
+            snprintf(err, sizeof(err), "Failed to seek to section %i in %s", sec, runtime_ext_path);
+            return rrc_result_create_error_errno(errno, err);
         }
 
         if (fread((void *)sec_addr, sec_size, 1, patch_file) != 1)
         {
             fclose(patch_file);
-            return rrc_result_create_error_errno(errno, "Failed to read section in runtime-ext.dol");
+            char err[64];
+            snprintf(err, sizeof(err), "Failed to read section %i in %s", sec, runtime_ext_path);
+            return rrc_result_create_error_errno(errno, err);
         }
 
         rrc_invalidate_cache((void *)sec_addr, sec_size);
@@ -684,21 +692,23 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
 
     // runtime-ext needs to be loaded before parsing riivo patches, as it writes to a static.
     // All errors that happen here are fatal; we can't boot the game without knowing the patches or having the patched DVD functions.
+    rrc_con_update("Load Runtime Extensions", 70);
     res = load_runtime_ext(region);
     rrc_result_error_check_error_fatal(&res);
 
+    rrc_con_update("Load Patch Information", 80);
     struct parse_riivo_output riivo_out;
     res = parse_riivo_patches(settings, &mem1_hi, &mem2_hi, &riivo_out);
     rrc_result_error_check_error_fatal(&res);
 
+    rrc_con_update("Patch DVD Functions", 85);
     patch_dvd_functions(dol, region);
     res = load_pulsar_loader(dol, riivo_out.loader_pul_dest);
     rrc_result_error_check_error_fatal(&res);
 
     rrc_loader_video_fix(region);
 
-    rrc_con_update("Patch and Launch Game", 75);
-
+    rrc_con_update("Final Preparations", 90);
     wiisocket_deinit();
 
     __IOS_ShutdownSubsystems();
@@ -707,7 +717,7 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
         IOS_Close(i);
     }
 
-    //IRQ_Disable();
+    // IRQ_Disable();
 
     SYS_ResetSystem(SYS_SHUTDOWN, 0, 0);
 

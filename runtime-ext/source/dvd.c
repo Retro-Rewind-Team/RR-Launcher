@@ -40,10 +40,6 @@ __attribute__((section(".riivo_disc_ptr"))) static struct rrc_riivo_disc *riivo_
 #define DVD_OPEN 0x93400040
 #define DVD_READ_PRIO 0x93400060
 
-#define DVD_CANCEL_PAL 0x80162fec
-#define DVD_CANCEL_NTSC 0x80162f4c
-#define DVD_CANCEL_NTSC_J 0x80162f0c
-
 /**
  * In order to tell whether an entrynum is a special-cased SD entrynum,
  * we set a certain bit pattern in the top bits, which are very unlikely to be used
@@ -469,30 +465,7 @@ custom_close_impl(FileInfo *file_info)
     // And yes: `DVDClose()` really always returns true (it has to!), the game's DVD error handler
     // has a bug where it will use-after-free in GP mode.
 
-    // TODO: this is a hack - maybe better to do this by providing this in the linker script for each dol?
-    static u32 dvd_cancel_addr = 0;
-    if (dvd_cancel_addr == 0)
-    {
-        char region = *(char *)0x80000003;
-        if (region == 'E')
-        {
-            dvd_cancel_addr = DVD_CANCEL_NTSC;
-        }
-        else if (region == 'J')
-        {
-            dvd_cancel_addr = DVD_CANCEL_NTSC_J;
-        }
-        else if (region == 'P')
-        {
-            dvd_cancel_addr = DVD_CANCEL_PAL;
-        } else 
-        {
-            RTE_FATAL("Unsupported region %c!", region);
-        }
-    }
-    RTE_DBG("dvd_cancel_addr: %04x\n", dvd_cancel_addr);
-
-    bool (*cb)(FileInfo *) = (void *)dvd_cancel_addr;
-    cb(file_info);
+    // We discard the return value of DVDCancel just in case by some force of God it doesn't return true.
+    DVDCancel(file_info);
     return true;
 }

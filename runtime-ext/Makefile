@@ -1,3 +1,9 @@
+# This Makefie produces multiple output executable DOL files.
+# The file generation is controlled by the presence of `linker-X.ld' linker scripts,
+# where X is any supported region. This Makefile uses all linker scripts to generate
+# equivalent runtime-ext-X.dol files. These files may then be placed on the SD card
+# for dynamic loading based on the game region.
+
 CC := powerpc-eabi-gcc
 LD := $(CC)
 
@@ -19,6 +25,7 @@ FILENAMES := $(addprefix runtime-ext-,$(REGIONS))
 DOLS := $(addsuffix .dol, $(FILENAMES))
 ELFS := $(addsuffix .elf, $(FILENAMES))
 
+# Linker script is added per region in the elf rule
 LDFLAGS := $(OFILES) $(MACHDEP) -Wl,--section-start=.init=81744260,--section-start=.text=81744660,--section-start=.rodata=81782fe0
 
 all: $(DOLS)
