@@ -15,6 +15,8 @@ endif
 
 include $(DEVKITPPC)/wii_rules
 
+GAME_DOL_LOADER := game_dol_loader
+
 #---------------------------------------------------------------------------------
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
@@ -24,7 +26,7 @@ include $(DEVKITPPC)/wii_rules
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 RELEASE     := $(BUILD)/release
-SOURCES		:=	source source/update source/pngu
+SOURCES		:=	source source/update source/pngu source/loader
 DATA		:=  data
 TEXTURES	:=	textures
 INCLUDES	:=
@@ -33,14 +35,14 @@ INCLUDES	:=
 # options for code generation
 #---------------------------------------------------------------------------------
 
-# Find the length of the `patch_dol` function in patch.c and expose it as a macro, which is needed because we memcpy() it.
-PATCH_DOL_LEN = 0x$(shell $(DEVKITPPC)/bin/powerpc-eabi-objdump patch.o -t | grep ' patch_dol' | awk '{print $$5}')
+# Find the length of the `patch_dol` function in $(GAME_DOL_LOADER).c and expose it as a macro, which is needed because we memcpy() it.
+PATCH_DOL_LEN = 0x$(shell $(DEVKITPPC)/bin/powerpc-eabi-objdump $(GAME_DOL_LOADER).o -t | grep ' patch_dol' | awk '{print $$5}')
 
 CFLAGS		=	-DPATCH_DOL_LEN=$(PATCH_DOL_LEN) -fno-builtin -g -O2 -Wall $(MACHDEP) $(INCLUDE)
 CXXFLAGS	=	$(CFLAGS)
 
-# compiler flags for the special patch.c file
-PATCH_CFLAGS = -O2 -fno-builtin -Wall -g $(MACHDEP) $(INCLUDE)
+# compiler flags for the special $(GAME_DOL_LOADER).c file
+GAME_DOL_LOADER_CFLAGS = -O2 -fno-builtin -Wall -g $(MACHDEP) $(INCLUDE)
 
 LDFLAGS	=	-g $(MACHDEP) -Wl,-Map,$(notdir $@).map
 
@@ -74,8 +76,8 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 #---------------------------------------------------------------------------------
 # automatically build a list of object files for our project
 #---------------------------------------------------------------------------------
-# patch.c is compiled in its own step and its .o is linked in OFILES
-CFILES		:=	$(filter-out patch.c, $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c))))
+# dol_loader.c is compiled in its own step and its .o is linked in OFILES
+CFILES		:=	$(filter-out $(GAME_DOL_LOADER).c, $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c))))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
@@ -96,7 +98,7 @@ export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 					$(addsuffix .o,$(TPLFILES)) \
 					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) \
 					$(sFILES:.s=.o) $(SFILES:.S=.o) \
-					patch.o
+					$(GAME_DOL_LOADER).o
 
 #---------------------------------------------------------------------------------
 # build a list of include paths
@@ -126,7 +128,7 @@ $(BUILD):
 clean:
 	@echo clean ...
 	make --no-print-directory -C runtime-ext clean
-	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol patch.o
+	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).dol $(GAME_DOL_LOADER).o
 #---------------------------------------------------------------------------------
 run:
 	wiiload $(OUTPUT).dol
@@ -145,10 +147,10 @@ else
 # main targets
 #---------------------------------------------------------------------------------
 $(OUTPUT).dol: $(OUTPUT).elf
-$(OUTPUT).elf: patch.o $(OFILES)
+$(OUTPUT).elf: $(GAME_DOL_LOADER).o $(OFILES)
 
-patch.o: patch.c
-	$(CC) $(PATCH_CFLAGS) -c $< -o $@
+$(GAME_DOL_LOADER).o: $(GAME_DOL_LOADER).c
+	$(CC) $(GAME_DOL_LOADER_CFLAGS) -c $< -o $@
 
 #---------------------------------------------------------------------------------
 # This rule links in binary data with the .bin extension
