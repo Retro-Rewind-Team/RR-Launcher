@@ -30,11 +30,12 @@
 #include <sys/statvfs.h>
 #include <errno.h>
 
+#include "loader/disc_loader.h"
 #include "shutdown.h"
 #include "util.h"
 #include "di.h"
 #include "time.h"
-#include "loader.h"
+#include "loader/loader.h"
 #include <dol.h>
 #include <riivo.h>
 #include "console.h"
@@ -132,7 +133,7 @@ int main(int argc, char **argv)
     rrc_con_update("Initialise DVD: Check for Mario Kart Wii", 12);
     /*  We should load Mario Kart Wii before doing anything else */
     char region;
-    res = rrc_loader_await_mkw(xfb, &region);
+    res = rrc_disc_loader_await_mkw(xfb, &region);
     if (res == RRC_RES_SHUTDOWN_INTERRUPT)
     {
         exit(0);
@@ -148,7 +149,7 @@ int main(int argc, char **argv)
     RRC_ASSERTEQ(res, RRC_DI_LIBDI_OK, "rrc_di_unencrypted_read for partition group");
 
     u32 data_part_offset = UINT32_MAX;
-    res = rrc_loader_locate_data_part(&data_part_offset);
+    res = rrc_disc_loader_locate_data_part(&data_part_offset);
 
     if (data_part_offset == UINT32_MAX)
     {

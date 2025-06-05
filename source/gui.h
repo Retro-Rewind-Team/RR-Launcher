@@ -15,6 +15,27 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    `rrc_gui_video_fix' uses code adapted from Brainslug:
+    Copyright (C) 2014, Alex Chadwick
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 */
 
 #ifndef RRC_GUI_H
@@ -59,5 +80,15 @@ int rrc_gui_display_banner(void *xfb);
     Define our own subset of supported resolutions.
 */
 GXRModeObj* rrc_gui_get_video_mode();
+
+/*
+    Set a video mode that will load properly.
+
+    This code is part of Brainslug, adapted for this channel.
+    See copyright notice at the start of this file.
+
+    https://github.com/Chadderz121/brainslug-wii/blob/8ca49384452dcb7d41e90d002ba0f85b4e57bf57/src/apploader/apploader.c#L114
+*/
+void rrc_gui_video_fix(char region);
 
 #endif

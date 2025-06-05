@@ -22,7 +22,7 @@
 
 #include <string.h>
 
-#include "settingsfile.h"
+#include "../settingsfile.h"
 #include <dol.h>
 
 #define RRC_BI2_SIZE 0x2000
@@ -30,31 +30,10 @@
 // Must be kept in sync with the .riivo_disc_ptr section address in runtime-ext's linker script
 #define RRC_RIIVO_DISC_PTR 0x81782fa0
 
-#define RRC_LOADER_PUL_PATH "RetroRewind6/Binaries/Loader.pul"
-// We need to load the correct runtime-ext.
-// This is provided as a base; however, the region and file extension needs
-// to be appended at runtime.
-#define RRC_RUNTIME_EXT_BASE_PATH "RetroRewindChannel/runtime-ext"
-
 /*
     `out' should be a statically allocated string no less than 64 bytes long.
 */
 void rrc_loader_get_runtime_ext_path(char region, char *out);
-
-/*
- * Spins until Mario Kart Wii is inserted into the disc drive.
- *
- * The region pointer is populated with the disc's region. This is needed to
- * load the patches at appropriate addresses.
- *
- * Returns normal RRC status codes.
- */
-int rrc_loader_await_mkw(void *xfb, char *region);
-
-/*
- * Locate the data partition and return it. On failure, `part' is set to NULL.
- */
-int rrc_loader_locate_data_part(u32 *part);
 
 /*
  * This routine applies all patches from code.pul as well as setting key memory addresses

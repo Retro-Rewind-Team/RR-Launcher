@@ -1,5 +1,5 @@
 /*
-    patch.h - final game launching logic (see patch.c for details)
+    game_dol_loader.h - final game launching logic (see dol_loader.c for details)
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -17,8 +17,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef RRC_PATCH_H
-#define RRC_PATCH_H
+#ifndef RRC_DOL_LOADER_H
+#define RRC_DOL_LOADER_H
 
 #include <gctypes.h>
 #include <dol.h>

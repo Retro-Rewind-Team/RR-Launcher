@@ -27,7 +27,7 @@
 
 #include <gctypes.h>
 
-#include "result.h"
+#include "../result.h"
 
 enum rrc_dvd_region
 {

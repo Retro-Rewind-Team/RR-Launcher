@@ -1,5 +1,5 @@
 /*
-    patch.c - final game launching logic
+    game_dol_loader.c - final game launching logic
 
     Copyright (C) 2025  Retro Rewind Team
 
@@ -42,7 +42,7 @@
  */
 
 #include <stdint.h>
-#include "patch.h"
+#include "game_dol_loader.h"
 
 void patch_dol(struct rrc_dol *dol, struct rrc_riivo_memory_patch *mem_patches, int mem_patch_count, void (*ic_invalidate_range)(void *, u32), void (*dc_flush_range)(void *, u32))
 {
