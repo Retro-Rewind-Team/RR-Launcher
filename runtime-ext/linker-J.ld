@@ -27,8 +27,8 @@ SECTIONS {
     .riivo_disc_ptr               0x81782fa0 : { *(.riivo_disc_ptr) }
 
     # Functions provided by the game
-    PROVIDE(__lcase = 0x80246320);
-    PROVIDE(__ucase = 0x80246420);
+    PROVIDE(__lcase = 0x80245cd0);
+    PROVIDE(__ucase = 0x80245dd0);
     PROVIDE(OSUTF8to32 = 0x801ab330);
     PROVIDE(OSUTF32toANSI = 0x801ab4b0);
     PROVIDE(OSLockMutex = 0x801a7e04);
