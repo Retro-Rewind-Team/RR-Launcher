@@ -76,7 +76,6 @@ static char *changes_saved_status = RRC_CON_ANSI_FG_GREEN "Changes saved." RRC_C
 static char *changes_not_saved_status = RRC_CON_ANSI_BG_BRIGHT_RED "Error saving changes." RRC_CON_ANSI_CLR;
 
 static char *my_stuff_label = "My Stuff";
-static char *language_label = "Language";
 static char *savegame_label = "Separate savegame";
 static char *autoupdate_label = "Automatic updates";
 
@@ -152,7 +151,6 @@ static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *
 
 #define CLEANUP             \
     free(my_stuff_options); \
-    free(language_options); \
     free(savegame_options); \
     mxmlDelete(xml_top);    \
     fclose(xml_file);
@@ -174,22 +172,13 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
     mxml_node_t *xml_options = mxmlFindElement(xml_top, xml_top, "options", NULL, NULL, MXML_DESCEND);
     RRC_ASSERT(xml_options != NULL, "no <options> tag in xml");
 
-    const char **my_stuff_options, **language_options, **savegame_options;
-    int my_stuff_options_count, language_options_count, savegame_options_count;
+    const char **my_stuff_options, **savegame_options;
+    int my_stuff_options_count, savegame_options_count;
     const char *autoupdate_options[] = {"Disabled", "Enabled"};
     int autoupdate_option_count = sizeof(autoupdate_options) / sizeof(char *);
 
     struct rrc_result r;
     r = xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
-    if (rrc_result_is_error(&r))
-    {
-        result->context = r.context;
-        result->errtype = r.errtype;
-        result->inner = r.inner;
-        return RRC_SETTINGS_ERROR;
-    }
-
-    r = xml_find_option_choices(xml_options, xml_top, "Language", &language_options, &language_options_count, &stored_settings->language);
     if (rrc_result_is_error(&r))
     {
         result->context = r.context;
@@ -222,12 +211,6 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
          .initial_selected_option = stored_settings->my_stuff,
          .option_count = my_stuff_options_count,
          .margin_top = 1},
-        {.type = ENTRY_TYPE_SELECT,
-         .label = language_label,
-         .options = language_options,
-         .selected_option = &stored_settings->language,
-         .initial_selected_option = stored_settings->language,
-         .option_count = language_options_count},
         {.type = ENTRY_TYPE_SELECT,
          .label = savegame_label,
          .options = savegame_options,
@@ -456,7 +439,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     }
 
                     strncpy(status_message, changes_saved_status, sizeof(status_message));
-                    status_message_row = 12;
+                    status_message_row = 11;
                     status_message_col = strlen(cursor_icon) + strlen(save_label) + 3;
 
                     break;

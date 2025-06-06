@@ -38,7 +38,6 @@ enum rrc_settingsfile_status
 struct rrc_settingsfile
 {
     u32 my_stuff;
-    u32 language;
     u32 savegame;
     u32 auto_update;
 };

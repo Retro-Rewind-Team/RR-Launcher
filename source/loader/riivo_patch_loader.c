@@ -143,7 +143,6 @@ struct rrc_result rrc_riivo_patch_loader_parse(struct rrc_settingsfile *settings
     mxml_index_t *options_index = mxmlIndexNew(xml_top, "option", NULL);
 
     rrc_patch_loader_append_patches_for_option(xml_top, options_index, "My Stuff", settings->my_stuff, active_patches, &active_patches_count);
-    rrc_patch_loader_append_patches_for_option(xml_top, options_index, "Language", settings->language, active_patches, &active_patches_count);
     // Just always enable the pack, there is no setting for this.
     rrc_patch_loader_append_patches_for_option(xml_top, options_index, "Pack", RRC_SETTINGSFILE_PACK_ENABLED_VALUE, active_patches, &active_patches_count);
 
