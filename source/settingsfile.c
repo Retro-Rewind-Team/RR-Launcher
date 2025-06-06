@@ -46,7 +46,6 @@
 
 #define RRC_SETTINGSFILE_PATH "RetroRewindChannel/.settings"
 #define RRC_SETTINGSFILE_MY_STUFF_KEY "My Stuff"
-#define RRC_SETTINGSFILE_LANGUAGE_KEY "Language"
 #define RRC_SETTINGSFILE_SAVEGAME_KEY "Separate savegame"
 #define RRC_SETTINGSFILE_AUTOUPDATE_KEY "Auto update"
 #define RRC_SETTINGSFILE_MAGIC 1920234103
@@ -104,7 +103,6 @@ struct rrc_result rrc_settingsfile_create()
 void rrc_settingsfile_init_defaults(struct rrc_settingsfile *settings)
 {
     settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
-    settings->language = RRC_SETTINGSFILE_DEFAULT;
     settings->savegame = RRC_SETTINGSFILE_DEFAULT;
     settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
 }
@@ -183,10 +181,6 @@ struct rrc_result rrc_settingsfile_parse(struct rrc_settingsfile *settings)
         {
             settings->my_stuff = value;
         }
-        else if (strcmp(key, RRC_SETTINGSFILE_LANGUAGE_KEY) == 0)
-        {
-            settings->language = value;
-        }
         else if (strcmp(key, RRC_SETTINGSFILE_SAVEGAME_KEY) == 0)
         {
             settings->savegame = value;
@@ -239,10 +233,9 @@ struct rrc_result rrc_settingsfile_store(struct rrc_settingsfile *settings)
         return rrc_result_create_error_errno(errno, "Failed to open settingsfile");
     }
 
-    rrc_settingsfile_write_header(file, 4);
+    rrc_settingsfile_write_header(file, 3);
 
     TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_MY_STUFF_KEY, settings->my_stuff));
-    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_LANGUAGE_KEY, settings->language));
     TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->savegame));
     TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_AUTOUPDATE_KEY, settings->auto_update));
 
