@@ -27,6 +27,7 @@
 
 #define RRC_BI2_SIZE 0x2000
 #define RRC_PATCH_COPY_ADDRESS 0x80900000
+#define RRC_SIGNATURE_ADDRESS 0x93400100
 // Must be kept in sync with the .riivo_disc_ptr section address in runtime-ext's linker script
 #define RRC_RIIVO_DISC_PTR 0x81782fa0
 

@@ -17,15 +17,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-SECTIONS {
-    # .init, .text and .rodata are specified in Makefile LDFLAGS
-    .dvd_convert_path_to_entrynum 0x81782e60 : { *(.dvd_convert_path_to_entrynum) }
-    .dvd_open                     0x81782ea0 : { *(.dvd_open) }
-    .dvd_fast_open                0x81782ee0 : { *(.dvd_fast_open) }
-    .dvd_read_prio                0x81782f20 : { *(.dvd_read_prio) }
-    .dvd_close                    0x81782f60 : { *(.dvd_close) }
-    .riivo_disc_ptr               0x81782fa0 : { *(.riivo_disc_ptr) }
+INCLUDE base.ld
 
+SECTIONS {
     # Functions provided by the game
     PROVIDE(__lcase = 0x80246320);
     PROVIDE(__ucase = 0x80246420);
