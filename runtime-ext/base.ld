@@ -26,4 +26,6 @@ SECTIONS {
     .dvd_read_prio                0x81782f20 : { *(.dvd_read_prio) }
     .dvd_close                    0x81782f60 : { *(.dvd_close) }
     .riivo_disc_ptr               0x81782fa0 : { *(.riivo_disc_ptr) }
+
+    ASSERT(ADDR(.bss) + SIZEOF(.bss) <= 0x817FFFFF, "bss section overflows mem1")
 }
