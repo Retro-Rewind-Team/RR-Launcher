@@ -187,7 +187,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
         return RRC_SETTINGS_ERROR;
     }
 
-    r = xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->savegame);
+    r = xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->separate_savegame);
     if (rrc_result_is_error(&r))
     {
         result->context = r.context;
@@ -214,8 +214,8 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
         {.type = ENTRY_TYPE_SELECT,
          .label = savegame_label,
          .options = savegame_options,
-         .selected_option = &stored_settings->savegame,
-         .initial_selected_option = stored_settings->savegame,
+         .selected_option = &stored_settings->separate_savegame,
+         .initial_selected_option = stored_settings->separate_savegame,
          .option_count = savegame_options_count},
         {.type = ENTRY_TYPE_SELECT,
          .label = autoupdate_label,

@@ -203,7 +203,13 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
 
     // Signature, used by Pulsar to tell that we've loaded via the new channel instead of Riivolution.
     *(u32 *)RRC_SIGNATURE_ADDRESS = 0xDEADBEEF;
-    rrc_invalidate_cache((void *)RRC_SIGNATURE_ADDRESS, 4);
+
+    u8 bitflags = 0;
+    if (settings->separate_savegame)
+        bitflags |= RRC_BITFLAGS_SAVEGAME;
+
+    *(u8 *)RRC_RR_BITFLAGS = bitflags;
+    rrc_invalidate_cache((void *)RRC_SIGNATURE_ADDRESS, 5);
 
     // The last step is to copy the sections from the safe space to where they actually need to be.
     // This requires copying the function itself to the safe address space so we don't overwrite ourselves.

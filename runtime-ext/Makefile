@@ -12,6 +12,9 @@ MACHDEP := -DGEKKO -mrvl -mcpu=750 -meabi -mhard-float
 CFILES := $(wildcard source/*.c) $(wildcard vendor/**/*.c)
 OFILES := $(addprefix build/,$(CFILES:.c=.o))
 
+# Prevent deletion of .o files, helps with incr rebuilds
+.SECONDARY: $(OFILES)
+
 INCLUDE := -I$(DEVKITPRO)/bslug/include -I../shared -Ivendor
 CFLAGS	:= -nostdlib -mno-eabi -O2 -Wall $(MACHDEP) $(INCLUDE)
 
