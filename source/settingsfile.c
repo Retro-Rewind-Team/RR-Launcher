@@ -103,7 +103,7 @@ struct rrc_result rrc_settingsfile_create()
 void rrc_settingsfile_init_defaults(struct rrc_settingsfile *settings)
 {
     settings->my_stuff = RRC_SETTINGSFILE_DEFAULT;
-    settings->savegame = RRC_SETTINGSFILE_DEFAULT;
+    settings->separate_savegame = RRC_SETTINGSFILE_DEFAULT;
     settings->auto_update = RRC_SETTINGSFILE_AUTOUPDATE_DEFAULT;
 }
 
@@ -183,7 +183,7 @@ struct rrc_result rrc_settingsfile_parse(struct rrc_settingsfile *settings)
         }
         else if (strcmp(key, RRC_SETTINGSFILE_SAVEGAME_KEY) == 0)
         {
-            settings->savegame = value;
+            settings->separate_savegame = value;
         }
         else if (strcmp(key, RRC_SETTINGSFILE_AUTOUPDATE_KEY) == 0)
         {
@@ -236,7 +236,7 @@ struct rrc_result rrc_settingsfile_store(struct rrc_settingsfile *settings)
     rrc_settingsfile_write_header(file, 3);
 
     TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_MY_STUFF_KEY, settings->my_stuff));
-    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->savegame));
+    TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_SAVEGAME_KEY, settings->separate_savegame));
     TRY(rrc_settingsfile_set_option(file, RRC_SETTINGSFILE_AUTOUPDATE_KEY, settings->auto_update));
 
     fclose(file);
