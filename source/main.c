@@ -29,6 +29,7 @@
 #include <mxml.h>
 #include <sys/statvfs.h>
 #include <errno.h>
+#include <dirent.h>
 
 #include "loader/disc_loader.h"
 #include "shutdown.h"
@@ -83,6 +84,22 @@ int main(int argc, char **argv)
     // NOTE: We can't call any kind of printf before initialising libfat
     struct rrc_result sdinit_res = rrc_sd_init();
     rrc_result_error_check_error_fatal(&sdinit_res);
+
+    errno = 0;
+    
+    DIR* dir = opendir("sd:/RetroRewindChannel");
+    if(dir != NULL)
+    {
+        closedir(dir);
+    } else if(errno == ENOENT)
+    {
+        mkdir("sd:/RetroRewindChannel", 0);
+    } else
+    {
+        // ???
+       struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to open sd:/RetroRewindChannel");
+       rrc_result_error_check_error_fatal(&err);
+    }
 
     rrc_con_update("Initialise controllers", 0);
     res = PAD_Init();
