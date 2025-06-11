@@ -70,7 +70,7 @@ static void get_runtime_ext_path(char region, char *out)
     snprintf(out, 64, RRC_RUNTIME_EXT_BASE_PATH "-%c.dol", region);
 }
 
-struct rrc_result rrc_binary_load_runtime_ext(char region)
+void rrc_binary_load_runtime_ext(char region)
 {
     char runtime_ext_path[64];
     get_runtime_ext_path(region, runtime_ext_path);
@@ -80,7 +80,8 @@ struct rrc_result rrc_binary_load_runtime_ext(char region)
     {
         char err[64];
         snprintf(err, sizeof(err), "Failed to open %s", runtime_ext_path);
-        return rrc_result_create_error_errno(errno, err);
+        struct rrc_result res = rrc_result_create_error_errno(errno, err);
+        rrc_result_error_check_error_fatal(&res);
     }
     struct rrc_dol patch_dol;
 
@@ -90,7 +91,8 @@ struct rrc_result rrc_binary_load_runtime_ext(char region)
         fclose(patch_file);
         char err[64];
         snprintf(err, sizeof(err), "Failed to read %s", runtime_ext_path);
-        return rrc_result_create_error_errno(errno, err);
+        struct rrc_result res = rrc_result_create_error_errno(errno, err);
+        rrc_result_error_check_error_fatal(&res);
     }
 
     memset((void *)patch_dol.bss_addr, 0, patch_dol.bss_size);
@@ -114,7 +116,8 @@ struct rrc_result rrc_binary_load_runtime_ext(char region)
             fclose(patch_file);
             char err[64];
             snprintf(err, sizeof(err), "Failed to seek to section %i in %s", sec, runtime_ext_path);
-            return rrc_result_create_error_errno(errno, err);
+            struct rrc_result res = rrc_result_create_error_errno(errno, err);
+            rrc_result_error_check_error_fatal(&res);
         }
 
         if (fread((void *)sec_addr, sec_size, 1, patch_file) != 1)
@@ -122,12 +125,12 @@ struct rrc_result rrc_binary_load_runtime_ext(char region)
             fclose(patch_file);
             char err[64];
             snprintf(err, sizeof(err), "Failed to read section %i in %s", sec, runtime_ext_path);
-            return rrc_result_create_error_errno(errno, err);
+            struct rrc_result res = rrc_result_create_error_errno(errno, err);
+            rrc_result_error_check_error_fatal(&res);
         }
 
         rrc_invalidate_cache((void *)sec_addr, sec_size);
     }
 
     fclose(patch_file);
-    return rrc_result_success;
 }
