@@ -41,6 +41,6 @@ bool rrc_binary_find_section_by_addr(struct rrc_dol *dol, u32 addr, void **virt_
 
 struct rrc_result rrc_binary_load_pulsar_loader(struct rrc_dol *dol, void *real_loader_addr);
 
-struct rrc_result rrc_binary_load_runtime_ext(char region);
+void rrc_binary_load_runtime_ext(char region);
 
 #endif

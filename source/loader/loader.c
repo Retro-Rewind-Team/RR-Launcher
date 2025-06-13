@@ -147,8 +147,7 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     // runtime-ext needs to be loaded before parsing riivo patches, as it writes to a static.
     // All errors that happen here are fatal; we can't boot the game without knowing the patches or having the patched DVD functions.
     rrc_con_update("Load Runtime Extensions", 70);
-    res = rrc_binary_load_runtime_ext(region);
-    rrc_result_error_check_error_fatal(&res);
+    rrc_binary_load_runtime_ext(region);
 
     rrc_con_update("Load Patch Information", 80);
     struct parse_riivo_output riivo_out;
