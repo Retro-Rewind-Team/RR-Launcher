@@ -91,7 +91,7 @@ void rrc_con_display_version()
     if (cached_version == -1)
     {
         struct rrc_result version_result = rrc_update_get_current_version(&cached_version);
-        rrc_result_error_check_error_fatal(&version_result);
+        rrc_result_error_check_error_fatal(version_result);
     }
 
     char vertext[32];

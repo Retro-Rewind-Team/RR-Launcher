@@ -476,12 +476,7 @@ struct rrc_result rrc_update_do_updates(void *xfb, int *count, bool *updates_ins
     int res = wiisocket_init();
     if (res < 0)
     {
-        struct rrc_result r = {
-            .context = "Failed to connect to the internet. Please check your connection and internet settings.",
-            .errtype = ESOURCE_UPDATE_MISC,
-            .inner = {.wiisocket_init_code = res}};
-
-        return r;
+        return rrc_result_create_error_misc_update("Failed to connect to the internet. Please check your connection and internet settings.");
     }
 
     *updates_installed = false;

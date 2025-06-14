@@ -26,13 +26,7 @@ struct rrc_result rrc_sd_init()
 {
     if (!fatInitDefault())
     {
-        struct rrc_result sdfail = {
-            .errtype = ESOURCE_SD_CARD,
-            .context = "Couldn't mount the SD card - is it inserted?",
-            .inner = {
-                .errnocode = EIO}};
-
-        return sdfail;
+        return rrc_result_create_error_sdcard(EIO, "Couldn't mount the SD card - is it inserted?");
     }
 
     if (chdir("sd:/") == -1)

@@ -30,8 +30,6 @@
 
 enum rrc_result_error_source
 {
-    /* Success condition */
-    ESOURCE_NONE = -1,
     ESOURCE_CURL,
     ESOURCE_ERRNO,
     ESOURCE_ZIP,
@@ -62,18 +60,20 @@ union rrc_result_error_inner
     int wiisocket_init_code;
 };
 
-#define TRY(x)                         \
-    do                                 \
-    {                                  \
-        struct rrc_result res = x;     \
-        if (rrc_result_is_error(&res)) \
-            return res;                \
-    } while (0);
+/* heap allocated error structure */
+struct rrc_result_error
+{
+    /* the relevant union member */
+    enum rrc_result_error_source source;
+    /* additional source data of the error, activate member indicated by `source` enum */
+    union rrc_result_error_inner inner;
+    /* dynamically sized string containing some extra context */
+    char context[];
+};
 
 /* Primary result struct. Denotes either success or failure of a routine.
    Success is considered a no-op in most cases, and errors are handled in different
    ways depending on the context and severity.
-
    Errors have two main escape routes:
       - Fatal errors cannot be recovered from. The most serious of errors will
         display themselves on-screen, and then a fixed-length delay will happen
@@ -82,14 +82,12 @@ union rrc_result_error_inner
         controller in order to, for example, support pressing A to exit etc.
         Some examples of fatal errors include failure to initialise SD card,
         failure to initialise DVD drive, can't init controllers, etc.
-
       - Normal errors are errors that can be recovered from. When a normal error
         occurs, the user is displayed an error prompt which they can dismiss.
         Some examples include failure to download updates, failed to save settings
         etc.
         It is implementation defined exactly what happens when a normal error occurs.
         See `rrc_result_error_check_error_normal' for details.
-
     This result struct should rarely (or never) be interfaced with directly.
     Instead, use the plethora of helper functions in order to process and handle
     errors. For example, to check for error and react accordingly, call the
@@ -97,27 +95,32 @@ union rrc_result_error_inner
     depending on the context of the error condition. For example, early stage
     SD card failure would use the former function. See their documentaton for
     more details.
-
     Result structs can be created with `rrc_result_create_*' (depending on source).
     Result structures are designed to be stack-allocated (i.e., not using `malloc').
 */
 struct rrc_result
 {
-    /* the relevant union member - set to -1 on success */
-    enum rrc_result_error_source errtype;
-
-    /* the following fields are only defined in the event of an error */
-    /* the actual source of the error */
-    union rrc_result_error_inner inner;
-    /* static string with any additional error context */
-    const char *context;
+    /* NULL if this result represents the 'ok' state, otherwise a heap allocated error structure.
+       This allows it to fit in a single register and is useful because it gets passed around a lot,
+       and is also still very fast to create in the common happy ok path. */
+    struct rrc_result_error *err;
 };
+
+#define TRY(x)                        \
+    do                                \
+    {                                 \
+        struct rrc_result res = x;    \
+        if (rrc_result_is_error(res)) \
+            return res;               \
+    } while (0);
 
 extern const struct rrc_result rrc_result_success;
 
 struct rrc_result rrc_result_create_error_curl(CURLcode error, const char *context);
 
 struct rrc_result rrc_result_create_error_errno(int eno, const char *context);
+
+struct rrc_result rrc_result_create_error_sdcard(int eno, const char *context);
 
 struct rrc_result rrc_result_create_error_zip(int error, const char *context);
 
@@ -130,12 +133,21 @@ struct rrc_result rrc_result_create_error_misc_update(const char *context);
 struct rrc_result rrc_result_create_error_corrupted_rr_xml(const char *context);
 
 /* Returns true if this result is an error, false otherwise. */
-bool rrc_result_is_error(struct rrc_result *result);
+inline bool rrc_result_is_error(struct rrc_result result)
+{
+    return result.err != NULL;
+}
+
+/* Returns the context associated with this result, or NULL if there is no error */
+inline const char *rrc_result_context(struct rrc_result result)
+{
+    return rrc_result_is_error(result) ? result.err->context : NULL;
+}
 
 /* Returns a statically allocated string with contextual information related to
    the inner error code. NULL if unknown or not an error. The returned string
    should not be freed. */
-char *rrc_result_strerror(struct rrc_result *result);
+char *rrc_result_strerror(struct rrc_result result);
 
 /* Check this result for error condition, and if it is in an erroneous state, supply
    a prompt with the error details. This prompt can be dismissed.
@@ -145,14 +157,25 @@ char *rrc_result_strerror(struct rrc_result *result);
    back to the call site of thie work (such as the settings page) and no other
    action is taken.
 
-   The xfb parameter is required for prompt display. */
-void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb);
+   The xfb parameter is required for prompt display.
+
+   This function **consumes** the result and must not be used or freed explicitly again.
+   */
+void rrc_result_error_check_error_normal(struct rrc_result result, void *xfb);
 
 /* Check this result for error condition, and if it is in an erroneous state, display
    an error message, wait a set period of time, and exit.
 
    Unlike normal errors, this can be called from anywhere because either it does
    nothing (success) or never returns (error). */
-void rrc_result_error_check_error_fatal(struct rrc_result *result);
+void rrc_result_error_check_error_fatal(struct rrc_result result);
+
+/**
+ * Frees any heap allocated data associated with this result struct.
+ *
+ * Must be called exactly once (unless another function is called first that consumes this;
+ * `rrc_result_error_*` functions also implicitly free the result and you must not free it again).
+ */
+void rrc_result_free(struct rrc_result result);
 
 #endif

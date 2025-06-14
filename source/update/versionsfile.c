@@ -316,7 +316,7 @@ struct rrc_result rrc_versionsfile_get_necessary_urls_and_versions(char *version
         int verint;
         struct rrc_result verstring_res = rrc_versionsfile_parse_verstring(parts[0], &verint);
 
-        if (rrc_result_is_error(&verstring_res))
+        if (rrc_result_is_error(verstring_res))
         {
             rrc_versionsfile_free_split(lines, count);
             return verstring_res;
@@ -379,7 +379,7 @@ struct rrc_result rrc_versionsfile_parse_deleted_files(char *input, int current_
         int verint;
         struct rrc_result verstring_res = rrc_versionsfile_parse_verstring(parts[0], &verint);
 
-        if (rrc_result_is_error(&verstring_res))
+        if (rrc_result_is_error(verstring_res))
         {
             rrc_versionsfile_free_split(lines, count);
             return verstring_res;
