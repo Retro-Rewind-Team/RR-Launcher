@@ -83,22 +83,24 @@ int main(int argc, char **argv)
 
     // NOTE: We can't call any kind of printf before initialising libfat
     struct rrc_result sdinit_res = rrc_sd_init();
-    rrc_result_error_check_error_fatal(&sdinit_res);
+    rrc_result_error_check_error_fatal(sdinit_res);
 
     errno = 0;
-    
-    DIR* dir = opendir("sd:/RetroRewindChannel");
-    if(dir != NULL)
+
+    DIR *dir = opendir("sd:/RetroRewindChannel");
+    if (dir != NULL)
     {
         closedir(dir);
-    } else if(errno == ENOENT)
+    }
+    else if (errno == ENOENT)
     {
         mkdir("sd:/RetroRewindChannel", 0);
-    } else
+    }
+    else
     {
         // ???
-       struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to open sd:/RetroRewindChannel");
-       rrc_result_error_check_error_fatal(&err);
+        struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to open sd:/RetroRewindChannel");
+        rrc_result_error_check_error_fatal(err);
     }
 
     rrc_con_update("Initialise controllers", 0);
@@ -131,7 +133,7 @@ int main(int argc, char **argv)
         if (afd == NULL)
         {
             struct rrc_result err = rrc_result_create_error_errno(errno, "Failed to create acceptance file. The SD card may be locked.");
-            rrc_result_error_check_error_normal(&err, xfb);
+            rrc_result_error_check_error_normal(err, xfb);
         }
         else
         {
@@ -190,29 +192,32 @@ int main(int argc, char **argv)
     rrc_con_update("Load settings", 20);
     struct rrc_settingsfile stored_settings;
     struct rrc_result settingsfile_res = rrc_settingsfile_parse(&stored_settings);
-    if (rrc_result_is_error(&settingsfile_res))
+    if (rrc_result_is_error(settingsfile_res))
     {
         char *lines[] = {
-            rrc_result_strerror(&settingsfile_res),
-            (char *)settingsfile_res.context,
+            rrc_result_strerror(settingsfile_res),
+            (char *)rrc_result_context(settingsfile_res),
             "It may be possible to fix this by recreating the file.",
             "Recreate now?",
         };
+        rrc_result_free(settingsfile_res);
+
         enum rrc_prompt_result prompt_res = rrc_prompt_yes_no(xfb, lines, 4);
 
         if (prompt_res == RRC_PROMPT_RESULT_YES)
         {
             settingsfile_res = rrc_settingsfile_create();
-            if (rrc_result_is_error(&settingsfile_res))
+            if (rrc_result_is_error(settingsfile_res))
             {
                 char *lines[] = {
                     "Failed to recreate settings file.",
-                    rrc_result_strerror(&settingsfile_res),
-                    (char *)settingsfile_res.context,
+                    rrc_result_strerror(settingsfile_res),
+                    (char *)rrc_result_context(settingsfile_res),
                     "Defaults will be used with no changes on the SD card.",
                 };
                 rrc_prompt_1_option(xfb, lines, 4, "OK");
             }
+            rrc_result_free(settingsfile_res);
         }
 
         // `rrc_settingsfile_parse()` always initializes the settingsfile, so even in case of an error here,
@@ -226,7 +231,7 @@ int main(int argc, char **argv)
         int update_count;
         bool any_updates;
         struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &any_updates);
-        rrc_result_error_check_error_normal(&update_res, xfb);
+        rrc_result_error_check_error_normal(update_res, xfb);
     }
 
 #define INTERRUPT_TIME 3000000 /* 3 seconds */
@@ -253,7 +258,7 @@ int main(int argc, char **argv)
         {
             struct rrc_result r;
             int out = rrc_settings_display(xfb, &stored_settings, &r);
-            rrc_result_error_check_error_fatal(&r);
+            rrc_result_error_check_error_fatal(r);
 
             switch (out)
             {

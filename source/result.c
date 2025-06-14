@@ -27,101 +27,88 @@
 #include "time.h"
 #include "console.h"
 
-const struct rrc_result rrc_result_success = {
-    .errtype = ESOURCE_NONE,
-};
+const struct rrc_result rrc_result_success = {.err = NULL};
+
+static struct rrc_result_error *alloc_error(enum rrc_result_error_source esource, union rrc_result_error_inner einner,
+                                            const char *context)
+{
+    int contextlen = strlen(context);
+    struct rrc_result_error *err = malloc(sizeof(struct rrc_result_error) + contextlen + 1);
+    err->source = esource;
+    err->inner = einner;
+    strncpy(err->context, context, contextlen + 1);
+    return err;
+}
 
 struct rrc_result rrc_result_create_error_curl(CURLcode error, const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_CURL;
-    res.inner.ccode = error;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {.ccode = error};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_CURL, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_errno(int eno, const char *context)
 {
-    struct rrc_result res;
+    union rrc_result_error_inner einner = {.errnocode = eno};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_ERRNO, einner, context)};
+    return res;
+}
 
-    res.errtype = ESOURCE_ERRNO;
-    res.inner.errnocode = eno;
-    res.context = context;
-
+struct rrc_result rrc_result_create_error_sdcard(int eno, const char *context)
+{
+    union rrc_result_error_inner einner = {.errnocode = eno};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_SD_CARD, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_zip(int error, const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_ZIP;
-    res.inner.ziperr = error;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {.ziperr = error};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_ZIP, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_corrupted_settingsfile(const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_CORRUPTED_SETTINGSFILE;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {0};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_CORRUPTED_SETTINGSFILE, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_corrupted_versionfile(const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_CORRUPTED_VERSIONFILE;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {0};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_CORRUPTED_VERSIONFILE, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_misc_update(const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_UPDATE_MISC;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {0};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_UPDATE_MISC, einner, context)};
     return res;
 }
 
 struct rrc_result rrc_result_create_error_corrupted_rr_xml(const char *context)
 {
-    struct rrc_result res;
-
-    res.errtype = ESOURCE_CORRUPTED_RR_XML;
-    res.context = context;
-
+    union rrc_result_error_inner einner = {0};
+    struct rrc_result res = {.err = alloc_error(ESOURCE_CORRUPTED_RR_XML, einner, context)};
     return res;
 }
 
-bool rrc_result_is_error(struct rrc_result *result)
-{
-    return result != NULL && result->errtype != ESOURCE_NONE;
-}
-
-char *rrc_result_strerror(struct rrc_result *result)
+char *rrc_result_strerror(struct rrc_result result)
 {
     if (!rrc_result_is_error(result))
     {
         return NULL;
     }
 
-    switch (result->errtype)
+    switch (result.err->source)
     {
     case ESOURCE_CURL:
-        return (char *)curl_easy_strerror(result->inner.ccode);
+        return (char *)curl_easy_strerror(result.err->inner.ccode);
     case ESOURCE_ERRNO:
-        return strerror(result->inner.errnocode);
+        return strerror(result.err->inner.errnocode);
     case ESOURCE_ZIP:
         return "ZIP file error.";
     case ESOURCE_CORRUPTED_SETTINGSFILE:
@@ -134,7 +121,7 @@ char *rrc_result_strerror(struct rrc_result *result)
         return "SD card error.";
     case ESOURCE_WIISOCKET_INIT:
     {
-        switch (result->inner.wiisocket_init_code)
+        switch (result.err->inner.wiisocket_init_code)
         {
         case -1:
             return "Network initialisation already in progress.";
@@ -155,7 +142,7 @@ char *rrc_result_strerror(struct rrc_result *result)
     }
 }
 
-void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb)
+void rrc_result_error_check_error_normal(struct rrc_result result, void *xfb)
 {
     if (!rrc_result_is_error(result))
     {
@@ -171,13 +158,14 @@ void rrc_result_error_check_error_normal(struct rrc_result *result, void *xfb)
         line1,
         "",
         "Additional info:",
-        (char *)result->context,
+        (char *)result.err->context,
     };
 
     rrc_prompt_1_option(xfb, lines, 4, "OK");
+    rrc_result_free(result);
 }
 
-void rrc_result_error_check_error_fatal(struct rrc_result *result)
+void rrc_result_error_check_error_fatal(struct rrc_result result)
 {
     if (!rrc_result_is_error(result))
     {
@@ -191,10 +179,18 @@ void rrc_result_error_check_error_fatal(struct rrc_result *result)
     rrc_con_print_text_centered(origin_row, RRC_CON_ANSI_FG_BRIGHT_RED "A fatal error has occurred!");
     rrc_con_cursor_seek_to(origin_row + 2, 0);
     printf(RRC_CON_ANSI_FG_BRIGHT_RED "Error: " RRC_CON_ANSI_FG_WHITE "%s\n", rrc_result_strerror(result));
-    printf(RRC_CON_ANSI_FG_BRIGHT_CYAN "Additional info: " RRC_CON_ANSI_FG_WHITE "%s\n", result->context);
+    printf(RRC_CON_ANSI_FG_BRIGHT_CYAN "Additional info: " RRC_CON_ANSI_FG_WHITE "%s\n", result.err->context);
     printf("\n\nPlease check your installation of Retro Rewind.\nThe launcher will exit in %i seconds.", RRC_RESULT_FATAL_SPLASH_TIME_SEC);
 
     rrc_usleep(RRC_RESULT_FATAL_SPLASH_TIME_SEC * 1000 * 1000);
 
     exit(1);
+}
+
+void rrc_result_free(struct rrc_result result)
+{
+    if (result.err)
+    {
+        free(result.err);
+    }
 }

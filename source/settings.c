@@ -157,14 +157,13 @@ static bool prompt_save_unsaved_changes(void *xfb, const struct settings_entry *
 
 enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile *stored_settings, struct rrc_result *result)
 {
-    result->errtype = ESOURCE_NONE;
+    *result = rrc_result_success;
 
     // Read the XML to extract all possible options for the entries.
     FILE *xml_file = fopen(RRC_RIIVO_XML_PATH, "r");
     if (!xml_file)
     {
-        struct rrc_result r = rrc_result_create_error_errno(errno, "Failed to open " RRC_RIIVO_XML_PATH);
-        memcpy(result, &r, sizeof(struct rrc_result));
+        *result = rrc_result_create_error_errno(errno, "Failed to open " RRC_RIIVO_XML_PATH);
         return RRC_SETTINGS_ERROR;
     }
     mxml_node_t *xml_top = mxmlLoadFile(NULL, xml_file, NULL);
@@ -179,20 +178,16 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
 
     struct rrc_result r;
     r = xml_find_option_choices(xml_options, xml_top, "My Stuff", &my_stuff_options, &my_stuff_options_count, &stored_settings->my_stuff);
-    if (rrc_result_is_error(&r))
+    if (rrc_result_is_error(r))
     {
-        result->context = r.context;
-        result->errtype = r.errtype;
-        result->inner = r.inner;
+        *result = r;
         return RRC_SETTINGS_ERROR;
     }
 
     r = xml_find_option_choices(xml_options, xml_top, "Seperate Savegame", &savegame_options, &savegame_options_count, &stored_settings->separate_savegame);
-    if (rrc_result_is_error(&r))
+    if (rrc_result_is_error(r))
     {
-        result->context = r.context;
-        result->errtype = r.errtype;
-        result->inner = r.inner;
+        *result = r;
         return RRC_SETTINGS_ERROR;
     }
 
@@ -414,19 +409,22 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
                         struct rrc_result res = rrc_settingsfile_store(stored_settings);
-                        rrc_result_error_check_error_normal(&res, xfb);
+                        rrc_result_error_check_error_normal(res, xfb);
                     }
 
                     goto launch;
                 }
                 else if (entry->label == save_label)
                 {
-                    struct rrc_result res = rrc_settingsfile_store(stored_settings);
-                    rrc_result_error_check_error_normal(&res, xfb);
+                    // We'll set a status message in either ok/err case, so set up the position here.
+                    status_message_row = 11;
+                    status_message_col = strlen(cursor_icon) + strlen(save_label) + 3;
 
-                    if (rrc_result_is_error(&res))
+                    struct rrc_result res = rrc_settingsfile_store(stored_settings);
+                    if (rrc_result_is_error(res))
                     {
                         strncpy(status_message, changes_not_saved_status, sizeof(status_message));
+                        rrc_result_error_check_error_normal(res, xfb);
                         break;
                     }
 
@@ -439,9 +437,6 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     }
 
                     strncpy(status_message, changes_saved_status, sizeof(status_message));
-                    status_message_row = 11;
-                    status_message_col = strlen(cursor_icon) + strlen(save_label) + 3;
-
                     break;
                 }
                 else if (entry->label == perform_updates_label)
@@ -450,9 +445,9 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     bool updated;
                     struct rrc_result update_res = rrc_update_do_updates(xfb, &update_count, &updated);
 
-                    if (rrc_result_is_error(&update_res))
+                    if (rrc_result_is_error(update_res))
                     {
-                        rrc_result_error_check_error_normal(&update_res, xfb);
+                        rrc_result_error_check_error_normal(update_res, xfb);
                     }
                     else
                     {
@@ -493,7 +488,7 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     if (has_unsaved_changes && prompt_save_unsaved_changes(xfb, entries, entry_count))
                     {
                         struct rrc_result res = rrc_settingsfile_store(stored_settings);
-                        rrc_result_error_check_error_normal(&res, xfb);
+                        rrc_result_error_check_error_normal(res, xfb);
                     }
 
                     goto exit;

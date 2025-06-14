@@ -63,7 +63,7 @@ static void patch_dvd_functions(struct rrc_dol *dol, char region)
         char e[64];
         snprintf(e, sizeof(e), "Unsupported region %c", region);
         struct rrc_result res = rrc_result_create_error_errno(ENOTSUP, e);
-        rrc_result_error_check_error_fatal(&res);
+        rrc_result_error_check_error_fatal(res);
     }
 
     // We need to hack around the fact you can't assign to arrays unless the rhs is a constant
@@ -152,12 +152,12 @@ void rrc_loader_load(struct rrc_dol *dol, struct rrc_settingsfile *settings, voi
     rrc_con_update("Load Patch Information", 80);
     struct parse_riivo_output riivo_out;
     res = rrc_riivo_patch_loader_parse(settings, &mem1_hi, &mem2_hi, &riivo_out);
-    rrc_result_error_check_error_fatal(&res);
+    rrc_result_error_check_error_fatal(res);
 
     rrc_con_update("Patch DVD Functions", 85);
     patch_dvd_functions(dol, region);
     res = rrc_binary_load_pulsar_loader(dol, riivo_out.loader_pul_dest);
-    rrc_result_error_check_error_fatal(&res);
+    rrc_result_error_check_error_fatal(res);
 
     rrc_gui_video_fix(region);
 
