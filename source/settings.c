@@ -416,14 +416,17 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                 }
                 else if (entry->label == save_label)
                 {
+                    // We'll set a status message in either ok/err case, so set up the position here.
+                    status_message_row = 11;
+                    status_message_col = strlen(cursor_icon) + strlen(save_label) + 3;
+
                     struct rrc_result res = rrc_settingsfile_store(stored_settings);
                     if (rrc_result_is_error(res))
                     {
                         strncpy(status_message, changes_not_saved_status, sizeof(status_message));
+                        rrc_result_error_check_error_normal(res, xfb);
                         break;
                     }
-
-                    rrc_result_error_check_error_normal(res, xfb);
 
                     for (int i = 0; i < entry_count; i++)
                     {
@@ -434,9 +437,6 @@ enum rrc_settings_result rrc_settings_display(void *xfb, struct rrc_settingsfile
                     }
 
                     strncpy(status_message, changes_saved_status, sizeof(status_message));
-                    status_message_row = 11;
-                    status_message_col = strlen(cursor_icon) + strlen(save_label) + 3;
-
                     break;
                 }
                 else if (entry->label == perform_updates_label)
